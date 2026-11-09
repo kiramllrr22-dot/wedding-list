@@ -3,7 +3,7 @@
 // La clé "anon" / "publishable" est faite pour être publique :
 // c'est la base de données qui décide qui a le droit de lire quoi.
 window.LISTE_CONFIG = {
-  SUPABASE_URL: "https://xxxxxxxxxxxx.supabase.co",
-  SUPABASE_KEY: "colle-ici-ta-cle-anon-ou-publishable",
+  SUPABASE_URL: "https://hvjmotznhvevfbbcvleb.supabase.co",
+  SUPABASE_KEY: "sb_publishable_vVRbsCwWG5dpXRikm7LxUg_BDMFG8Phe",
   DEVISE: "CHF"
 };
