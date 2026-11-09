@@ -180,7 +180,9 @@
     const { data: isAdmin, error } = await db.rpc("is_admin");
     if (error || !isAdmin) {
       await db.auth.signOut();
-      $("login-error").textContent = "Ce compte n'a pas accès à la gestion de la liste.";
+      $("login-error").textContent = error
+        ? "Connexion réussie, mais la vérification des droits a échoué. As-tu bien lancé le script setup.sql ? (détail : " + error.message + ")"
+        : "Connexion réussie, mais cette adresse e-mail n'est pas dans la liste des admins (table admins du script SQL).";
       $("login-error").hidden = false;
       return;
     }
@@ -191,7 +193,20 @@
   $("login-btn").addEventListener("click", async () => {
     $("login-error").hidden = true;
     const { error } = await db.auth.signInWithPassword({ email: $("email").value.trim(), password: $("password").value });
-    if (error) { $("login-error").textContent = "E-mail ou mot de passe incorrect."; $("login-error").hidden = false; return; }
+    if (error) {
+      const m = ((error.code || "") + " " + (error.message || "")).toLowerCase();
+      let msg;
+      if (m.includes("not_confirmed") || m.includes("not confirmed"))
+        msg = "Ce compte n'est pas confirmé. Dans Supabase, recrée l'utilisateur en cochant « Auto Confirm User ».";
+      else if (m.includes("invalid_credentials") || m.includes("invalid login"))
+        msg = "Supabase ne reconnaît pas cette combinaison e-mail et mot de passe. Vérifie qu'il n'y a pas d'espace ou de majuscule en trop.";
+      else if (m.includes("api key") || m.includes("apikey") || m.includes("fetch") || m.includes("network"))
+        msg = "Le site n'arrive pas à joindre Supabase. Vérifie l'adresse et la clé dans config.js.";
+      else msg = "La connexion n'a pas fonctionné.";
+      $("login-error").textContent = msg + " (détail : " + (error.message || error.code || "inconnu") + ")";
+      $("login-error").hidden = false;
+      return;
+    }
     enter();
   });
   $("password").addEventListener("keydown", (e) => { if (e.key === "Enter") $("login-btn").click(); });
