@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<title>Infos</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💛</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Pinyon+Script&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script src="common.js"></script>
+</head>
+<body>
+<header class="site-head" id="site-head"></header>
+
+<main>
+  <section class="page-head wrap">
+    <h1 class="section-title"><span data-t="prog_a"></span> <span class="script" data-t="prog_b"></span></h1>
+    <p data-t="prog_lead"></p>
+  </section>
+
+  <section class="program wrap" id="program"></section>
+
+  <section class="practical" id="practical" hidden>
+    <div class="wrap">
+      <h2 class="section-title"><span data-t="practical_a"></span> <span class="script" data-t="practical_b"></span></h2>
+      <div class="info-grid" id="info-grid"></div>
+    </div>
+  </section>
+
+  <p class="status" id="status" hidden></p>
+</main>
+
+<footer class="foot wrap" id="site-foot"></footer>
+
+<script>
+(async function () {
+  const S = window.Site, { t, tr, el } = S;
+  const s = await S.init("infos");
+  if (!s) return;
+
+  const [prog, infos] = await Promise.all([
+    S.db.from("program").select("*").order("position").order("created_at"),
+    S.db.from("infos").select("*").order("position").order("created_at")
+  ]);
+  if (prog.error || infos.error) { console.error(prog.error || infos.error); S.showStatus(t("load_error"), true); return; }
+
+  const box = document.getElementById("program");
+  (prog.data || []).forEach((p) => {
+    const pic = S.safeUrl(p.image_url);
+    const row = el("article", { class: "prog" + (pic ? "" : " no-photo") });
+    if (pic) row.append(el("div", { class: "ph" }, el("img", { src: pic, alt: "", loading: "lazy" })));
+    const txt = el("div", { class: "txt" }, el("h2", { text: tr(p, "title") }));
+    if (p.time_label) txt.append(el("div", { class: "time", text: p.time_label }));
+    const place = tr(p, "place"), address = p.address;
+    if (place) txt.append(el("p", { class: "place", text: place }));
+    if (address) txt.append(el("p", { class: "address", text: address }));
+    const map = S.safeUrl(p.map_url);
+    if (map) txt.append(el("a", { class: "map", href: map, target: "_blank", rel: "noopener noreferrer", text: t("map") }));
+    row.append(txt); box.append(row); S.reveal(row);
+  });
+
+  const grid = document.getElementById("info-grid");
+  (infos.data || []).forEach((i) => {
+    const c = el("div", { class: "info-card" }, el("h3", { text: tr(i, "title") }));
+    const text = tr(i, "text");
+    if (text) c.append(el("p", { text }));
+    const link = S.safeUrl(i.link);
+    if (link) c.append(el("a", { href: link, target: "_blank", rel: "noopener noreferrer", text: tr(i, "link_label") || link.replace(/^https?:\/\//, "").split("/")[0] }));
+    grid.append(c);
+  });
+  document.getElementById("practical").hidden = !(infos.data || []).length;
+
+  if (!(prog.data || []).length && !(infos.data || []).length) S.showStatus(t("soon"));
+})();
+</script>
+</body>
+</html>

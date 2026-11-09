@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<title>La liste</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💛</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Pinyon+Script&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script src="common.js"></script>
+</head>
+<body>
+<header class="site-head" id="site-head"></header>
+
+<main>
+  <section class="page-head wrap" style="padding-bottom:28px"></section>
+  <section class="list" id="liste">
+    <div class="wrap">
+      <div class="list-head">
+        <div class="eyebrow" data-t="list_eyebrow"></div>
+        <div>
+          <h1 class="section-title"><span data-t="list_a"></span> <span class="script" data-t="list_b"></span></h1>
+          <p data-t="list_intro"></p>
+        </div>
+      </div>
+      <div id="funds"></div>
+      <ul class="gifts" id="gifts"></ul>
+      <p class="status" id="status" data-t="loading"></p>
+    </div>
+  </section>
+
+  <section class="faq wrap" id="savoir">
+    <h2 class="section-title"><span data-t="faq_a"></span> <span class="script" data-t="faq_b"></span></h2>
+    <div>
+      <details><summary data-t="faq_how_q"></summary><p data-t="faq_how_a"></p></details>
+      <details><summary data-t="faq_who_q"></summary><p data-t="faq_who_a"></p></details>
+      <details id="pay-faq" hidden><summary data-t="faq_pay_q"></summary><p id="pay-text"></p></details>
+      <details><summary data-t="faq_oops_q"></summary><p data-t="faq_oops_a"></p></details>
+    </div>
+  </section>
+</main>
+
+<footer class="foot wrap" id="site-foot"></footer>
+
+<dialog id="dialog">
+  <span class="pill" id="d-kind"></span>
+  <h2 id="d-title"></h2>
+  <p class="hint" id="d-sub"></p>
+  <div id="d-form">
+    <label for="d-name" data-t="f_name"></label>
+    <input id="d-name" maxlength="100" autocomplete="name">
+    <div id="d-amount-wrap" hidden>
+      <label for="d-amount" id="d-amount-label"></label>
+      <input id="d-amount" type="number" min="1" step="1" inputmode="decimal">
+    </div>
+    <label for="d-message" data-t="f_msg"></label>
+    <textarea id="d-message" maxlength="500"></textarea>
+    <p class="private-note" data-t="d_private"></p>
+    <p class="error" id="d-error" hidden></p>
+    <div class="row">
+      <button class="btn ghost" id="d-cancel" type="button" data-t="back"></button>
+      <button class="btn" id="d-confirm" type="button" data-t="confirm"></button>
+    </div>
+  </div>
+  <div id="d-done" hidden>
+    <p id="d-done-text" style="font-size:1.1rem"></p>
+    <div id="d-done-payment" class="paybox" hidden></div>
+    <div class="row"><button class="btn" id="d-close" type="button" data-t="close"></button></div>
+  </div>
+</dialog>
+
+<script>
+(async function () {
+  const S = window.Site, { t, tr, el } = S;
+  const $ = (id) => document.getElementById(id);
+  const s = await S.init("list");
+  if (!s) return;
+  const payment = tr(s, "payment_info");
+  if (payment) { $("pay-text").textContent = payment; $("pay-faq").hidden = false; }
+
+  let current = null;
+  function iconButton(label, extra) {
+    const b = el("button", { class: "icon-btn" + (extra ? " " + extra : ""), type: "button", "aria-label": label, title: label });
+    b.innerHTML = S.ICON_GIFT; return b;
+  }
+
+  async function load() {
+    const [items, st] = await Promise.all([
+      S.db.from("items").select("*").order("position").order("created_at"),
+      S.db.rpc("item_status")
+    ]);
+    if (items.error || st.error) { console.error(items.error || st.error); S.showStatus(t("load_error"), true); return; }
+    const status = {};
+    (st.data || []).forEach((r) => (status[r.item_id] = r));
+    render(items.data || [], status);
+  }
+
+  function render(items, status) {
+    const funds = $("funds"), gifts = $("gifts");
+    funds.replaceChildren(); gifts.replaceChildren();
+
+    items.filter((i) => i.kind === "fund").forEach((i) => {
+      const st = status[i.id] || { total: 0, contributors: 0 };
+      const pic = S.safeUrl(i.image_url);
+      const card = el("div", { class: "fund" + (pic ? "" : " no-img") });
+      if (pic) card.append(el("div", { class: "fimg" }, el("img", { src: pic, alt: "", loading: "lazy" })));
+      const body = el("div", { class: "fbody" }, el("span", { class: "pill", text: t("fund_pill") }), el("h3", { text: tr(i, "title") }));
+      const desc = tr(i, "description");
+      if (desc) body.append(el("p", { text: desc }));
+      if (i.goal) {
+        const pct = Math.min(100, (Number(st.total) / Number(i.goal)) * 100);
+        const bar = el("div", { class: "bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(Math.round(pct)) });
+        const fill = el("span"); fill.style.width = pct + "%"; bar.append(fill); body.append(bar);
+      }
+      const label = i.goal ? t("fund_of", { a: S.money(st.total), b: S.money(i.goal) })
+        : (Number(st.total) > 0 ? t("fund_raised", { a: S.money(st.total) }) : t("fund_start"));
+      const who = st.contributors ? (st.contributors === 1 ? t("contrib_1") : t("contrib_n", { n: st.contributors })) : null;
+      const b = iconButton(t("join"), "light");
+      b.addEventListener("click", () => openDialog(i));
+      body.append(el("div", { class: "fund-meta" }, el("div", null, el("strong", { text: label }), who ? el("small", { text: who }) : null), b));
+      card.append(body); funds.append(card);
+    });
+
+    items.filter((i) => i.kind === "gift").forEach((i) => {
+      const taken = status[i.id] && status[i.id].claimed;
+      const pic = S.safeUrl(i.image_url);
+      const li = el("li", { class: "gift" + (taken ? " taken" : "") });
+      if (pic) li.append(el("div", { class: "gimg" }, el("img", { src: pic, alt: "", loading: "lazy" })));
+      const body = el("div", { class: "gbody" }, el("h3", { text: tr(i, "title") }));
+      const desc = tr(i, "description");
+      if (desc) body.append(el("p", { class: "desc", text: desc }));
+      const meta = el("div", { class: "meta" });
+      if (i.price != null) meta.append(el("span", { text: t("approx", { p: S.money(i.price) }) }));
+      const link = S.safeUrl(i.link);
+      if (link) meta.append(el("a", { href: link, target: "_blank", rel: "noopener noreferrer", text: t("see") }));
+      const act = el("div", { class: "act" }, meta);
+      if (taken) {
+        const mark = el("span", { class: "taken-mark", title: t("taken"), "aria-label": t("taken") });
+        mark.innerHTML = S.ICON_CHECK; act.append(mark);
+      } else {
+        const b = iconButton(t("choose"));
+        b.addEventListener("click", () => openDialog(i));
+        act.append(b);
+      }
+      body.append(act); li.append(body); gifts.append(li);
+    });
+
+    if (!items.length) S.showStatus(t("list_empty")); else $("status").hidden = true;
+  }
+
+  function openDialog(item) {
+    current = item;
+    const isFund = item.kind === "fund";
+    $("d-kind").textContent = isFund ? t("fund_pill") : t("gift_pill");
+    $("d-title").textContent = tr(item, "title");
+    $("d-sub").textContent = isFund ? t("d_fund_sub") : t("d_gift_sub");
+    $("d-amount-wrap").hidden = !isFund;
+    $("d-amount-label").textContent = t("d_amount", { cur: S.devise });
+    $("d-amount").value = ""; $("d-message").value = "";
+    $("d-error").hidden = true; $("d-form").hidden = false; $("d-done").hidden = true;
+    $("d-confirm").disabled = false;
+    $("dialog").showModal(); $("d-name").focus();
+  }
+  function showError(msg) { $("d-error").textContent = msg; $("d-error").hidden = false; }
+  $("d-cancel").addEventListener("click", () => $("dialog").close());
+  $("d-close").addEventListener("click", () => $("dialog").close());
+
+  $("d-confirm").addEventListener("click", async () => {
+    const name = $("d-name").value.trim(), message = $("d-message").value.trim();
+    const isFund = current.kind === "fund";
+    const amount = isFund ? Number($("d-amount").value) : null;
+    if (!name) return showError(t("err_name"));
+    if (isFund && !(amount > 0)) return showError(t("err_amount"));
+    $("d-confirm").disabled = true;
+    const { data, error } = await S.db.rpc("claim_item", { p_item: current.id, p_name: name, p_message: message, p_amount: amount });
+    if (error) { console.error(error); $("d-confirm").disabled = false; return showError(t("err_send")); }
+    if (data === "deja_pris") { $("d-confirm").disabled = false; showError(t("err_taken")); load(); return; }
+    try { localStorage.setItem("liste-nom", name); } catch {}
+    $("d-form").hidden = true; $("d-done").hidden = false;
+    $("d-done-text").textContent = t("thanks_gift", { name });
+    const pay = $("d-done-payment");
+    if (isFund && payment) { pay.textContent = payment; pay.hidden = false; } else pay.hidden = true;
+    load();
+  });
+
+  try { const n = localStorage.getItem("liste-nom"); if (n) $("d-name").value = n; } catch {}
+  load();
+})();
+</script>
+</body>
+</html>

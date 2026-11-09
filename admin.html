@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Gérer ma liste</title>
+<title>Gestion</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔑</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,138 +13,169 @@
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <style>
-  .page { max-width: 860px; margin: 0 auto; padding: 48px 22px 80px; }
-  .page h1 { font-family: var(--display); font-size: clamp(2.2rem, 6vw, 3.2rem); letter-spacing: -0.04em; line-height: 1; margin: 0 0 8px; font-weight: 700; }
-  .page h2 { font-family: var(--display); font-size: 1.6rem; letter-spacing: -0.03em; margin: 52px 0 6px; font-weight: 600; }
-  .panel { background: #fff; border: 1.5px solid var(--line); border-radius: 22px; padding: 22px; margin-top: 18px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
-  @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } }
-  table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
-  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-weight: 700; color: var(--muted); }
-  .scroll { overflow-x: auto; }
+  body { font-size: 16px; }
+  .login { max-width: 460px; margin: 10vh auto; padding: 0 20px; }
+  .login h1, .main h1 { font-family: var(--display); font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin: 0 0 18px; }
+  .login h1 { font-size: 2.6rem; }
+  .shell { display: grid; grid-template-columns: 230px 1fr; min-height: 100vh; }
+  .side { background: var(--ink); color: #dfe9f4; padding: 22px 12px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .side .mono { font-family: var(--script); font-size: 2.1rem; color: #fff; padding: 0 12px 16px; line-height: 1; }
+  .side button { font: inherit; display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; color: inherit;
+    padding: 10px 12px; border-radius: 10px; cursor: pointer; }
+  .side button:hover { background: rgba(255,255,255,.08); }
+  .side button[aria-current="true"] { background: var(--fund); color: #fff; font-weight: 600; }
+  .side .bottom { margin-top: 18px; border-top: 1px solid rgba(255,255,255,.15); padding-top: 12px; }
+  .side a { color: inherit; text-decoration: none; display: block; padding: 10px 12px; border-radius: 10px; }
+  .side a:hover { background: rgba(255,255,255,.08); }
+  .main { padding: 34px clamp(18px, 4vw, 48px) 80px; max-width: 1000px; }
+  .main h1 { font-size: clamp(2rem, 4vw, 2.6rem); }
+  .main h2 { font-family: var(--display); font-weight: 800; letter-spacing: -0.03em; font-size: 1.35rem; margin: 34px 0 10px; }
+  .panel { background: #fff; border: 1.5px solid var(--line); border-radius: 20px; padding: 20px 22px; margin-top: 14px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .kpi { background: #fff; border: 1.5px solid var(--line); border-radius: 18px; padding: 16px 18px; }
+  .kpi b { display: block; font-family: var(--display); font-weight: 800; font-size: 2rem; letter-spacing: -0.04em; line-height: 1.1; }
+  .kpi span { color: var(--muted); font-size: .92rem; }
   .item-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
   .item-row:last-child { border-bottom: 0; }
-  .tag { font-size: 0.72rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: var(--card); color: var(--muted); margin-left: 6px; text-transform: uppercase; letter-spacing: .06em; }
-  .tag.fund { background: var(--sky); color: var(--blue); }
-  .ok { color: var(--blue); font-weight: 700; }
-  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .topbar h1 { margin: 0; }
+  .item-row .lt { display: flex; gap: 12px; align-items: center; min-width: 0; }
+  .item-row img { width: 46px; height: 46px; object-fit: cover; border-radius: 10px; flex: none; }
+  .item-row .acts { display: flex; gap: 6px; flex: none; }
+  .tag { font-size: .7rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--peach); color: var(--ink); text-transform: uppercase; letter-spacing: .06em; margin-right: 8px; }
+  .tag.blue { background: #dfe9f3; }
+  .tag.grey { background: #eee; color: var(--muted); }
+  .btn.small { padding: 8px 14px; font-size: .9rem; }
+  .btn.danger { background: transparent; color: #a8433a; padding: 6px 10px; }
+  .btn.danger::before { display: none; }
   .photo-field { display: flex; gap: 14px; align-items: flex-start; }
-  #f-preview, #c-preview { width: 96px; height: 96px; object-fit: cover; border-radius: 14px; background: var(--sky); flex: none; }
-  .item-row img { width: 44px; height: 44px; object-fit: cover; border-radius: 10px; flex: none; }
+  .photo-field img { width: 96px; height: 96px; object-fit: cover; border-radius: 14px; background: var(--peach); flex: none; }
+  details.trans { margin-top: 8px; background: var(--card); border-radius: 12px; padding: 8px 12px; }
+  details.trans summary { cursor: pointer; font-size: .88rem; font-weight: 600; color: var(--muted); }
+  details.trans label { margin-top: 10px; font-size: .85rem; }
+  .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .switch:last-child { border-bottom: 0; }
+  .switch input { width: 46px; height: 26px; appearance: none; -webkit-appearance: none; background: #d9cfc7; border-radius: 999px; position: relative; cursor: pointer; border: 0; padding: 0; flex: none; transition: background .2s; }
+  .switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .2s; }
+  .switch input:checked { background: var(--coral); }
+  .switch input:checked::after { left: 23px; }
+  .grid2a { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: .93rem; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .scroll { overflow-x: auto; }
+  .ok { color: var(--fund); font-weight: 600; }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  @media (max-width: 820px) {
+    .shell { grid-template-columns: 1fr; }
+    .side { position: sticky; top: 0; height: auto; z-index: 10; display: flex; gap: 4px; overflow-x: auto; padding: 10px; }
+    .side .mono, .side .bottom { display: none; }
+    .side button { width: auto; white-space: nowrap; }
+    .grid2a { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
-<main class="page">
 
-  <section id="login">
-    <h1>Gérer ma liste</h1>
-    <div class="panel">
-      <label for="email">E-mail</label>
-      <input id="email" type="email" autocomplete="username">
-      <label for="password">Mot de passe</label>
-      <input id="password" type="password" autocomplete="current-password">
-      <p class="error" id="login-error" hidden></p>
-      <div class="row"><button class="btn" id="login-btn" type="button">Se connecter</button></div>
+<section class="login" id="login">
+  <h1>Gérer le site</h1>
+  <div class="panel">
+    <label for="email">E-mail</label>
+    <input id="email" type="email" autocomplete="username">
+    <label for="password">Mot de passe</label>
+    <input id="password" type="password" autocomplete="current-password">
+    <p class="error" id="login-error" hidden></p>
+    <div class="row"><button class="btn" id="login-btn" type="button">Se connecter</button></div>
+  </div>
+</section>
+
+<div class="shell" id="app" hidden>
+  <nav class="side" id="side" aria-label="Rubriques">
+    <div class="mono" id="mono">♡</div>
+    <button type="button" data-tab="dash">Tableau de bord</button>
+    <button type="button" data-tab="event">Événement</button>
+    <button type="button" data-tab="program">Programme</button>
+    <button type="button" data-tab="infos">Infos pratiques</button>
+    <button type="button" data-tab="story">Notre histoire</button>
+    <button type="button" data-tab="rsvps">Invités et réponses</button>
+    <button type="button" data-tab="list">La liste</button>
+    <div class="bottom">
+      <a href="./" target="_blank" rel="noopener">Voir le site ↗</a>
+      <button type="button" id="logout">Se déconnecter</button>
     </div>
-  </section>
+  </nav>
 
-  <section id="app" hidden>
-    <div class="topbar">
-      <h1>Gérer ma liste</h1>
-      <div style="display:flex;gap:8px">
-        <a class="btn ghost" href="./" target="_blank" style="text-decoration:none">Voir la liste</a>
-        <button class="btn ghost" id="logout" type="button">Se déconnecter</button>
-      </div>
-    </div>
+  <main class="main">
+    <section data-pane="dash">
+      <h1>Tableau de bord</h1>
+      <div class="kpis" id="kpis"></div>
+      <h2>Dernières réponses</h2>
+      <div class="panel" id="dash-last"></div>
+    </section>
 
-    <h2>Notre histoire</h2>
-    <p class="hint">Les photos et petites phrases qui défilent en haut de la page, dans l'ordre choisi.</p>
-    <div class="panel" id="chapters"></div>
-    <div class="panel">
-      <h3 id="c-form-title" style="margin:0 0 4px;font-size:1.15rem">ajouter un moment</h3>
-      <div class="grid2">
-        <div><label for="c-label">Petite étiquette (ex. 2019, le début)</label><input id="c-label" maxlength="40"></div>
-        <div><label for="c-position">Ordre d'affichage</label><input id="c-position" type="number" step="1" value="0"></div>
-      </div>
-      <label for="c-text">La phrase</label>
-      <textarea id="c-text" maxlength="300"></textarea>
-      <label for="c-file">Photo</label>
-      <div class="photo-field">
-        <img id="c-preview" alt="" hidden>
-        <div style="flex:1;min-width:0">
-          <input id="c-file" type="file" accept="image/*">
-          <button class="btn danger" id="c-remove-img" type="button" hidden style="margin-top:6px">retirer la photo</button>
+    <section data-pane="event" hidden>
+      <h1>Événement</h1>
+      <p class="hint">Ces réglages s'appliquent à tout le site. Les cases « allemand et espagnol » sont facultatives : si elles sont vides, le site affiche le français.</p>
+      <div id="event-form"></div>
+      <h2>Pages visibles sur le site</h2>
+      <div class="panel" id="toggles"></div>
+      <div class="row"><span class="ok" id="event-ok" hidden>Enregistré</span><button class="btn" id="event-save" type="button">Enregistrer</button></div>
+      <h2>Mon mot de passe</h2>
+      <div class="panel">
+        <div class="grid2a">
+          <div><label for="pw1">Nouveau mot de passe</label><input id="pw1" type="password" autocomplete="new-password"></div>
+          <div><label for="pw2">Le même, encore une fois</label><input id="pw2" type="password" autocomplete="new-password"></div>
         </div>
+        <p class="error" id="pw-error" hidden></p>
+        <div class="row"><span class="ok" id="pw-ok" hidden>Mot de passe changé</span><button class="btn ghost" id="pw-save" type="button">Changer le mot de passe</button></div>
       </div>
-      <p class="error" id="c-error" hidden></p>
-      <div class="row">
-        <button class="btn ghost" id="c-cancel" type="button" hidden>annuler la modification</button>
-        <button class="btn" id="c-save" type="button">ajouter</button>
-      </div>
-    </div>
+    </section>
 
-    <h2>Qui a choisi quoi</h2>
-    <p class="hint" id="claims-summary"></p>
-    <div class="panel scroll"><table>
-      <thead><tr><th>Élément</th><th>Nom</th><th>Montant</th><th>Message</th><th>Date</th><th></th></tr></thead>
-      <tbody id="claims"></tbody>
-    </table></div>
+    <section data-pane="program" hidden>
+      <h1>Programme</h1>
+      <p class="hint">Les moments de la journée, affichés sur la page infos avec une photo en alternance gauche et droite.</p>
+      <div data-coll="program"></div>
+    </section>
 
-    <h2>Éléments de la liste</h2>
-    <div class="panel" id="items"></div>
+    <section data-pane="infos" hidden>
+      <h1>Infos pratiques</h1>
+      <p class="hint">Accès, parking, hébergement, dress code, contact… Chaque info devient une carte sur la page infos.</p>
+      <div data-coll="infos"></div>
+    </section>
 
-    <h2 id="form-title">Ajouter un élément</h2>
-    <div class="panel">
-      <label for="f-kind">Type</label>
-      <select id="f-kind">
-        <option value="gift">Cadeau (une seule personne l'offre)</option>
-        <option value="fund">Cagnotte (plusieurs personnes participent, ex. le voyage)</option>
-      </select>
-      <label for="f-title">Titre</label>
-      <input id="f-title" maxlength="150">
-      <label for="f-desc">Description (facultatif)</label>
-      <textarea id="f-desc"></textarea>
-      <div class="grid2">
-        <div id="f-price-wrap"><label for="f-price">Prix indicatif (facultatif)</label><input id="f-price" type="number" min="0" step="1"></div>
-        <div id="f-goal-wrap" hidden><label for="f-goal">Objectif à atteindre (facultatif)</label><input id="f-goal" type="number" min="1" step="1"></div>
-        <div><label for="f-position">Ordre d'affichage</label><input id="f-position" type="number" step="1" value="0"></div>
-      </div>
-      <label for="f-file">Photo (facultatif)</label>
-      <div class="photo-field">
-        <img id="f-preview" alt="" hidden>
-        <div style="flex:1;min-width:0">
-          <input id="f-file" type="file" accept="image/*">
-          <p class="hint" style="margin:6px 0 0">Depuis ton ordinateur ou ton téléphone. Ou colle le lien d'une image trouvée en ligne :</p>
-          <input id="f-image" type="url" placeholder="https://…" style="margin-top:6px">
-          <button class="btn danger" id="f-remove-img" type="button" hidden style="margin-top:6px">Retirer la photo</button>
-        </div>
-      </div>
-      <label for="f-link">Lien vers le produit (facultatif)</label>
-      <input id="f-link" type="url">
-      <p class="error" id="f-error" hidden></p>
-      <div class="row">
-        <button class="btn ghost" id="f-cancel" type="button" hidden>Annuler la modification</button>
-        <button class="btn" id="f-save" type="button">Ajouter</button>
-      </div>
-    </div>
+    <section data-pane="story" hidden>
+      <h1>Notre histoire</h1>
+      <p class="hint">Les photos et petites phrases qui défilent sur la page d'accueil.</p>
+      <div data-coll="story"></div>
+    </section>
 
-    <h2>Textes du site</h2>
-    <div class="panel">
-      <label for="s-title">Titre</label>
-      <input id="s-title" maxlength="120">
-      <p class="hint" style="margin-top:6px">Le dernier mot du titre s'affiche en italique bleu.</p>
-      <label for="s-logo">Petit logo en haut à gauche (ex. k & m)</label>
-      <input id="s-logo" maxlength="20">
-      <label for="s-intro">Texte d'accueil</label>
-      <textarea id="s-intro"></textarea>
-      <label for="s-pay">Comment payer (Twint, IBAN… affiché en bas de la liste et après une participation)</label>
-      <textarea id="s-pay"></textarea>
-      <div class="row"><span class="ok" id="s-ok" hidden>Enregistré</span><button class="btn" id="s-save" type="button">Enregistrer les textes</button></div>
-    </div>
-  </section>
-</main>
+    <section data-pane="rsvps" hidden>
+      <h1>Invités et réponses</h1>
+      <div class="kpis" id="rsvp-kpis"></div>
+      <div class="toolbar" style="margin-top:22px">
+        <h2 style="margin:0">Toutes les réponses</h2>
+        <button class="btn ghost small" id="rsvp-export" type="button">Exporter pour Excel</button>
+      </div>
+      <div class="panel scroll"><table>
+        <thead><tr><th>Nom</th><th>Réponse</th><th>Pers.</th><th>Régime, allergies</th><th>Message</th><th>Langue</th><th>Date</th><th></th></tr></thead>
+        <tbody id="rsvp-rows"></tbody>
+      </table></div>
+    </section>
+
+    <section data-pane="list" hidden>
+      <h1>La liste</h1>
+      <div class="toolbar">
+        <h2 style="margin:0">Qui a choisi quoi</h2>
+        <button class="btn ghost small" id="claims-export" type="button">Exporter pour Excel</button>
+      </div>
+      <p class="hint" id="claims-summary" style="margin-top:6px"></p>
+      <div class="panel scroll"><table>
+        <thead><tr><th>Élément</th><th>Nom</th><th>Montant</th><th>Message</th><th>Date</th><th></th></tr></thead>
+        <tbody id="claims"></tbody>
+      </table></div>
+      <h2>Cadeaux et cagnotte</h2>
+      <div data-coll="items"></div>
+    </section>
+  </main>
+</div>
 
 <script>
 (function () {
@@ -152,143 +183,394 @@
   const devise = cfg.DEVISE || "CHF";
   const $ = (id) => document.getElementById(id);
   if (!window.supabase || !cfg.SUPABASE_URL || cfg.SUPABASE_URL.includes("xxxx")) {
-    $("login-error").textContent = "Renseigne d'abord config.js.";
-    $("login-error").hidden = false;
-    return;
+    $("login-error").textContent = "Renseigne d'abord config.js."; $("login-error").hidden = false; return;
   }
   const db = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
-  let items = [];
-  let editingId = null;
+  const BUCKET = "images";
 
   function el(tag, props, ...children) {
     const n = document.createElement(tag);
     if (props) for (const [k, v] of Object.entries(props)) {
-      if (k === "class") n.className = v; else if (k === "text") n.textContent = v; else n.setAttribute(k, v);
+      if (v == null || v === false) continue;
+      if (k === "class") n.className = v; else if (k === "text") n.textContent = v; else n.setAttribute(k, v === true ? "" : v);
     }
-    for (const c of children) if (c != null) n.append(c);
+    for (const c of children) if (c != null && c !== false) n.append(c);
     return n;
   }
   const money = (n) => (Number(n) || 0).toLocaleString("fr-CH", { maximumFractionDigits: 2 }) + " " + devise;
-  const numOrNull = (v) => (v === "" || v == null ? null : Number(v));
+  const fmtDate = (iso) => new Date(iso).toLocaleDateString("fr-CH");
+  const LANG_NAMES = { fr: "Français", de: "Deutsch", es: "Español" };
 
+  // ---------- Connexion ----------
   async function start() {
     const { data } = await db.auth.getSession();
-    if (data.session) enter(); else { $("login").hidden = false; $("app").hidden = true; }
+    if (data.session) enter(); else $("login").hidden = false;
   }
-
   async function enter() {
     const { data: isAdmin, error } = await db.rpc("is_admin");
     if (error || !isAdmin) {
       await db.auth.signOut();
       $("login-error").textContent = error
-        ? "Connexion réussie, mais la vérification des droits a échoué. As-tu bien lancé le script setup.sql ? (détail : " + error.message + ")"
-        : "Connexion réussie, mais cette adresse e-mail n'est pas dans la liste des admins (table admins du script SQL).";
-      $("login-error").hidden = false;
-      return;
+        ? "Connexion réussie, mais la vérification des droits a échoué. As-tu lancé le script SQL de mise à jour ? (détail : " + error.message + ")"
+        : "Connexion réussie, mais cette adresse e-mail n'est pas dans la liste des admins.";
+      $("login-error").hidden = false; $("login").hidden = false; $("app").hidden = true; return;
     }
     $("login").hidden = true; $("app").hidden = false;
+    showTab(location.hash.slice(1) || "dash");
     loadAll();
   }
-
   $("login-btn").addEventListener("click", async () => {
     $("login-error").hidden = true;
     const { error } = await db.auth.signInWithPassword({ email: $("email").value.trim(), password: $("password").value });
     if (error) {
       const m = ((error.code || "") + " " + (error.message || "")).toLowerCase();
-      let msg;
-      if (m.includes("not_confirmed") || m.includes("not confirmed"))
-        msg = "Ce compte n'est pas confirmé. Dans Supabase, recrée l'utilisateur en cochant « Auto Confirm User ».";
-      else if (m.includes("invalid_credentials") || m.includes("invalid login"))
-        msg = "Supabase ne reconnaît pas cette combinaison e-mail et mot de passe. Vérifie qu'il n'y a pas d'espace ou de majuscule en trop.";
-      else if (m.includes("api key") || m.includes("apikey") || m.includes("fetch") || m.includes("network"))
-        msg = "Le site n'arrive pas à joindre Supabase. Vérifie l'adresse et la clé dans config.js.";
-      else msg = "La connexion n'a pas fonctionné.";
-      $("login-error").textContent = msg + " (détail : " + (error.message || error.code || "inconnu") + ")";
-      $("login-error").hidden = false;
-      return;
+      let msg = "La connexion n'a pas fonctionné.";
+      if (m.includes("not_confirmed") || m.includes("not confirmed")) msg = "Ce compte n'est pas confirmé dans Supabase.";
+      else if (m.includes("invalid_credentials") || m.includes("invalid login")) msg = "E-mail ou mot de passe non reconnu.";
+      else if (m.includes("api key") || m.includes("fetch") || m.includes("network")) msg = "Le site n'arrive pas à joindre Supabase. Vérifie config.js.";
+      $("login-error").textContent = msg + " (détail : " + (error.message || error.code) + ")"; $("login-error").hidden = false; return;
     }
     enter();
   });
   $("password").addEventListener("keydown", (e) => { if (e.key === "Enter") $("login-btn").click(); });
   $("logout").addEventListener("click", async () => { await db.auth.signOut(); location.reload(); });
 
-  async function loadAll() {
-    const [s, it, cl, st] = await Promise.all([
-      db.from("settings").select("*").eq("id", 1).maybeSingle(),
-      db.from("items").select("*").order("position").order("created_at"),
-      db.from("claims").select("*, items(title, kind)").order("created_at", { ascending: false }),
-      db.from("story").select("*").order("position").order("created_at")
-    ]);
-    if (s.data) { $("s-title").value = s.data.title; $("s-intro").value = s.data.intro; $("s-pay").value = s.data.payment_info; $("s-logo").value = s.data.logo || ""; }
-    items = it.data || [];
-    renderItems();
-    renderClaims(cl.data || []);
-    chapters = st.data || [];
-    renderChapters();
+  // ---------- Onglets ----------
+  const TABS = ["dash", "event", "program", "infos", "story", "rsvps", "list"];
+  function showTab(name) {
+    if (!TABS.includes(name)) name = "dash";
+    document.querySelectorAll("[data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== name));
+    document.querySelectorAll("#side [data-tab]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.tab === name)));
+    history.replaceState(null, "", "#" + name);
+    window.scrollTo(0, 0);
   }
+  document.querySelectorAll("#side [data-tab]").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
 
-  // ---------- Notre histoire ----------
-  let chapters = [];
-  let cEditing = null, cPending = null, cOriginal = "", cImage = "";
-  function cPreview(src) {
-    const img = $("c-preview");
-    if (src) { img.src = src; img.hidden = false; $("c-remove-img").hidden = false; }
-    else { img.removeAttribute("src"); img.hidden = true; $("c-remove-img").hidden = true; }
+  // ---------- Photos ----------
+  function storedPath(url) {
+    const marker = "/storage/v1/object/public/" + BUCKET + "/";
+    const i = (url || "").indexOf(marker);
+    return i === -1 ? null : decodeURIComponent(url.slice(i + marker.length));
   }
-  function renderChapters() {
-    const box = $("chapters"); box.replaceChildren();
-    if (!chapters.length) box.append(el("p", { class: "hint", text: "Aucun moment pour l'instant. Ajoute le premier ci-dessous." }));
-    chapters.forEach((c) => {
-      const edit = el("button", { class: "btn ghost", type: "button", text: "modifier" });
-      edit.addEventListener("click", () => {
-        cEditing = c.id; cPending = null; cOriginal = c.image_url; cImage = c.image_url;
-        $("c-label").value = c.label; $("c-text").value = c.text; $("c-position").value = c.position;
-        $("c-file").value = ""; cPreview(c.image_url);
-        $("c-save").textContent = "enregistrer"; $("c-cancel").hidden = false;
-        $("c-form-title").textContent = "modifier ce moment";
-        $("c-form-title").scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-      const del = el("button", { class: "btn danger", type: "button", text: "supprimer" });
-      del.addEventListener("click", async () => {
-        if (!confirm("Supprimer ce moment ?")) return;
-        const { error } = await db.from("story").delete().eq("id", c.id);
-        if (error) { alert("La suppression n'a pas fonctionné."); return; }
-        await removeStoredImage(c.image_url);
-        loadAll();
-      });
-      const thumb = c.image_url ? el("img", { src: c.image_url, alt: "" }) : null;
-      box.append(el("div", { class: "item-row" },
-        el("div", { style: "display:flex;gap:12px;align-items:center;min-width:0" }, thumb,
-          el("span", null, c.label ? el("span", { class: "tag", style: "margin:0 8px 0 0", text: c.label }) : null, document.createTextNode(c.text || ""))),
-        el("div", { style: "display:flex;gap:6px" }, edit, del)));
+  async function removeStoredImage(url) { const p = storedPath(url); if (p) await db.storage.from(BUCKET).remove([p]); }
+  function shrink(file, max) {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob((b) => resolve(b), "image/jpeg", 0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
     });
   }
-  function cReset() {
-    cEditing = null; cPending = null; cOriginal = ""; cImage = "";
-    $("c-label").value = ""; $("c-text").value = ""; $("c-position").value = String((chapters.length + 1) * 10);
-    $("c-file").value = ""; cPreview(""); $("c-error").hidden = true;
-    $("c-save").textContent = "ajouter"; $("c-cancel").hidden = true; $("c-form-title").textContent = "ajouter un moment";
+  async function uploadImage(file, max) {
+    const blob = await shrink(file, max || 1600);
+    if (!blob) throw new Error("Ce format d'image n'est pas lisible. Essaie avec un JPG ou un PNG.");
+    const id = crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2);
+    const path = id + ".jpg";
+    const { error } = await db.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg", upsert: false });
+    if (error) throw new Error("L'envoi de la photo n'a pas fonctionné.");
+    return db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
   }
-  $("c-cancel").addEventListener("click", cReset);
-  $("c-file").addEventListener("change", () => {
-    const f = $("c-file").files[0]; if (!f) return;
-    cPending = f; cPreview(URL.createObjectURL(f));
+
+  // ---------- Formulaire générique ----------
+  // Champs : text, textarea, url, number, date, select, image. tr: true = traduisible.
+  function buildForm(fields, values) {
+    const box = el("div");
+    const state = { inputs: {}, trans: {}, pendingFile: {}, image: {}, original: {} };
+    values = values || {};
+    const i18n = values.i18n || {};
+    fields.forEach((f) => {
+      const wrap = el("div", { "data-field": f.k });
+      const id = "f-" + Math.random().toString(36).slice(2);
+      wrap.append(el("label", { for: id, text: f.label }));
+      let input;
+      if (f.type === "image") {
+        state.image[f.k] = values[f.k] || ""; state.original[f.k] = values[f.k] || "";
+        const prev = el("img", { alt: "", hidden: !state.image[f.k] }); if (state.image[f.k]) prev.src = state.image[f.k];
+        const file = el("input", { id, type: "file", accept: "image/*" });
+        const rm = el("button", { class: "btn danger", type: "button", text: "Retirer la photo", hidden: !state.image[f.k] });
+        file.addEventListener("change", () => {
+          const fl = file.files[0]; if (!fl) return;
+          state.pendingFile[f.k] = fl; prev.src = URL.createObjectURL(fl); prev.hidden = false; rm.hidden = false;
+        });
+        rm.addEventListener("click", () => { state.pendingFile[f.k] = null; state.image[f.k] = ""; file.value = ""; prev.hidden = true; rm.hidden = true; });
+        wrap.append(el("div", { class: "photo-field" }, prev, el("div", { style: "flex:1;min-width:0" }, file,
+          f.hint ? el("p", { class: "hint", style: "margin-top:6px", text: f.hint }) : null, rm)));
+      } else {
+        if (f.type === "textarea") input = el("textarea", { id, maxlength: f.max || 2000 });
+        else if (f.type === "select") { input = el("select", { id }); f.options.forEach(([v, l]) => input.append(el("option", { value: v, text: l }))); }
+        else input = el("input", { id, type: f.type === "url" ? "url" : f.type, maxlength: f.max, step: f.type === "number" ? "1" : null, placeholder: f.ph });
+        const v = values[f.k];
+        input.value = v == null ? (f.def != null ? f.def : "") : v;
+        state.inputs[f.k] = input; wrap.append(input);
+        if (f.hint) wrap.append(el("p", { class: "hint", style: "margin-top:6px", text: f.hint }));
+        if (f.tr) {
+          const det = el("details", { class: "trans" }, el("summary", { text: "Allemand et espagnol" }));
+          state.trans[f.k] = {};
+          let any = false;
+          ["de", "es"].forEach((l) => {
+            const tid = id + "-" + l;
+            const ti = f.type === "textarea" ? el("textarea", { id: tid, maxlength: f.max || 2000 }) : el("input", { id: tid, type: "text", maxlength: f.max });
+            ti.value = (i18n[l] && i18n[l][f.k]) || "";
+            if (ti.value) any = true;
+            state.trans[f.k][l] = ti;
+            det.append(el("label", { for: tid, text: LANG_NAMES[l] }), ti);
+          });
+          if (any) det.open = true;
+          wrap.append(det);
+        }
+      }
+      box.append(wrap);
+    });
+    function refreshVisibility() {
+      const vals = {}; for (const [k, i] of Object.entries(state.inputs)) vals[k] = i.value;
+      fields.forEach((f) => { if (f.show) box.querySelector('[data-field="' + f.k + '"]').hidden = !f.show(vals); });
+    }
+    Object.values(state.inputs).forEach((i) => i.addEventListener("change", refreshVisibility));
+    refreshVisibility();
+
+    async function collect() {
+      const row = {}, i18nOut = JSON.parse(JSON.stringify(values.i18n || {}));
+      const vals = {}; for (const [k, i] of Object.entries(state.inputs)) vals[k] = i.value;
+      for (const f of fields) {
+        const hiddenNow = f.show && !f.show(vals);
+        if (f.type === "image") {
+          if (state.pendingFile[f.k]) state.image[f.k] = await uploadImage(state.pendingFile[f.k], f.max);
+          row[f.k] = state.image[f.k] || "";
+          continue;
+        }
+        let v = state.inputs[f.k].value;
+        if (f.type === "number") v = v === "" || hiddenNow ? (f.nullable ? null : 0) : Number(v);
+        else if (f.type === "date") v = v || null;
+        else v = String(v).trim();
+        if (f.k === "position" && v === null) v = 0;
+        row[f.k] = v;
+        if (f.tr) ["de", "es"].forEach((l) => {
+          const tv = state.trans[f.k][l].value.trim();
+          i18nOut[l] = i18nOut[l] || {};
+          if (tv) i18nOut[l][f.k] = tv; else delete i18nOut[l][f.k];
+        });
+      }
+      if (fields.some((f) => f.tr)) row.i18n = i18nOut;
+      return row;
+    }
+    async function cleanupImages(row) {
+      for (const f of fields) if (f.type === "image" && state.original[f.k] && state.original[f.k] !== row[f.k]) await removeStoredImage(state.original[f.k]);
+    }
+    return { box, collect, cleanupImages };
+  }
+
+  // ---------- Collections (programme, infos, histoire, liste) ----------
+  const COLL = {
+    program: {
+      table: "program", add: "Ajouter un moment", empty: "Aucun moment pour l'instant.",
+      fields: [
+        { k: "title", label: "Nom du moment (ex. Cérémonie, Apéro, Repas)", type: "text", tr: true, max: 120, req: true },
+        { k: "time_label", label: "Heure (ex. 14:00 ou 16:30 – 02:00)", type: "text", max: 40 },
+        { k: "place", label: "Lieu", type: "text", tr: true, max: 150 },
+        { k: "address", label: "Adresse", type: "textarea", max: 300 },
+        { k: "map_url", label: "Lien vers la carte (copié depuis Google Maps, par exemple)", type: "url" },
+        { k: "image_url", label: "Photo", type: "image" },
+        { k: "position", label: "Ordre d'affichage", type: "number", def: 0, hint: "Du plus petit au plus grand. Utilise 10, 20, 30… pour pouvoir glisser un moment entre deux." }
+      ],
+      line: (r) => [r.time_label, r.title].filter(Boolean).join(" · ")
+    },
+    infos: {
+      table: "infos", add: "Ajouter une info", empty: "Aucune info pour l'instant.",
+      fields: [
+        { k: "title", label: "Titre (ex. Accès, Hébergement, Dress code)", type: "text", tr: true, max: 120, req: true },
+        { k: "text", label: "Texte", type: "textarea", tr: true, max: 2000 },
+        { k: "link", label: "Lien (facultatif)", type: "url" },
+        { k: "link_label", label: "Texte du lien (ex. Réserver une chambre)", type: "text", tr: true, max: 80 },
+        { k: "position", label: "Ordre d'affichage", type: "number", def: 0 }
+      ],
+      line: (r) => r.title
+    },
+    story: {
+      table: "story", add: "Ajouter un moment", empty: "Aucun moment pour l'instant.",
+      fields: [
+        { k: "label", label: "Petite étiquette (ex. 2019, Le début)", type: "text", tr: true, max: 40 },
+        { k: "text", label: "La phrase", type: "textarea", tr: true, max: 300 },
+        { k: "image_url", label: "Photo", type: "image" },
+        { k: "position", label: "Ordre d'affichage", type: "number", def: 0 }
+      ],
+      line: (r) => [r.label, r.text].filter(Boolean).join(" · ")
+    },
+    items: {
+      table: "items", add: "Ajouter un élément", empty: "Aucun élément pour l'instant.",
+      fields: [
+        { k: "kind", label: "Type", type: "select", options: [["gift", "Cadeau (une seule personne l'offre)"], ["fund", "Cagnotte (plusieurs personnes participent, ex. le voyage)"]] },
+        { k: "title", label: "Titre", type: "text", tr: true, max: 150, req: true },
+        { k: "description", label: "Description (facultatif)", type: "textarea", tr: true, max: 1000 },
+        { k: "price", label: "Prix indicatif (facultatif)", type: "number", nullable: true, show: (v) => v.kind === "gift" },
+        { k: "goal", label: "Objectif à atteindre (facultatif)", type: "number", nullable: true, show: (v) => v.kind === "fund" },
+        { k: "image_url", label: "Photo", type: "image" },
+        { k: "link", label: "Lien vers le produit (facultatif)", type: "url" },
+        { k: "position", label: "Ordre d'affichage", type: "number", def: 0 }
+      ],
+      line: (r) => r.title,
+      tag: (r) => r.kind === "fund" ? ["Cagnotte", "blue"] : ["Cadeau", ""]
+    }
+  };
+  const data = { program: [], infos: [], story: [], items: [] };
+
+  function renderColl(name) {
+    const c = COLL[name], host = document.querySelector('[data-coll="' + name + '"]');
+    const list = el("div", { class: "panel" });
+    if (!data[name].length) list.append(el("p", { class: "hint", text: c.empty }));
+    data[name].forEach((r) => {
+      const thumb = r.image_url ? el("img", { src: r.image_url, alt: "" }) : null;
+      const tag = c.tag ? c.tag(r) : null;
+      const edit = el("button", { class: "btn ghost small", type: "button", text: "Modifier" });
+      edit.addEventListener("click", () => openEditor(name, r));
+      const del = el("button", { class: "btn danger", type: "button", text: "Supprimer" });
+      del.addEventListener("click", async () => {
+        if (!confirm("Supprimer « " + (c.line(r) || "cet élément") + " » ?")) return;
+        const { error } = await db.from(c.table).delete().eq("id", r.id);
+        if (error) { alert("La suppression n'a pas fonctionné."); return; }
+        await removeStoredImage(r.image_url);
+        loadAll();
+      });
+      list.append(el("div", { class: "item-row" },
+        el("div", { class: "lt" }, thumb, el("span", null, tag ? el("span", { class: "tag " + tag[1], text: tag[0] }) : null, document.createTextNode(c.line(r) || "(sans titre)"))),
+        el("div", { class: "acts" }, edit, del)));
+    });
+    const addBtn = el("button", { class: "btn coral", type: "button", text: c.add });
+    addBtn.addEventListener("click", () => openEditor(name, null));
+    const editorHost = el("div", { id: "editor-" + name });
+    host.replaceChildren(list, el("div", { class: "row", style: "justify-content:flex-start" }, addBtn), editorHost);
+  }
+
+  function openEditor(name, row) {
+    const c = COLL[name], host = $("editor-" + name);
+    const defaults = row || { position: (data[name].length + 1) * 10, kind: "gift" };
+    const form = buildForm(c.fields, defaults);
+    const err = el("p", { class: "error", hidden: true });
+    const save = el("button", { class: "btn", type: "button", text: row ? "Enregistrer" : "Ajouter" });
+    const cancel = el("button", { class: "btn ghost", type: "button", text: "Annuler" });
+    cancel.addEventListener("click", () => host.replaceChildren());
+    save.addEventListener("click", async () => {
+      err.hidden = true; save.disabled = true;
+      try {
+        const out = await form.collect();
+        const missing = c.fields.find((f) => f.req && !out[f.k]);
+        if (missing) throw new Error("Remplis le champ « " + missing.label + " ».");
+        const { error } = row ? await db.from(c.table).update(out).eq("id", row.id) : await db.from(c.table).insert(out);
+        if (error) { console.error(error); throw new Error("L'enregistrement n'a pas fonctionné."); }
+        await form.cleanupImages(out);
+        host.replaceChildren(); loadAll();
+      } catch (e) { err.textContent = e.message; err.hidden = false; }
+      save.disabled = false;
+    });
+    host.replaceChildren(el("div", { class: "panel" },
+      el("h2", { style: "margin-top:0", text: row ? "Modifier" : c.add }), form.box, err, el("div", { class: "row" }, cancel, save)));
+    host.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---------- Événement ----------
+  const EVENT_FIELDS = [
+    { k: "names", label: "Vos prénoms (ex. Kira & Dan)", type: "text", max: 80 },
+    { k: "event_date", label: "Date du jour J", type: "date" },
+    { k: "place", label: "Lieu (affiché sous la date)", type: "text", max: 120 },
+    { k: "logo", label: "Petit logo en haut (facultatif, ex. K & D)", type: "text", max: 20 },
+    { k: "hero_image", label: "Photo de fond de l'accueil", type: "image", max: 2400, hint: "Une photo en format paysage rend mieux. Elle est réduite automatiquement." },
+    { k: "intro", label: "Texte d'accueil (sous la photo)", type: "textarea", tr: true, max: 1500 },
+    { k: "rsvp_deadline", label: "Date limite pour répondre (facultatif)", type: "date", hint: "Après cette date, le formulaire de présence se ferme tout seul." },
+    { k: "payment_info", label: "Comment payer (Twint, IBAN…), affiché sur la page de la liste", type: "textarea", tr: true, max: 1000 }
+  ];
+  const TOGGLES = [
+    ["show_story", "Notre histoire (sur l'accueil)"],
+    ["show_infos", "Infos et programme"],
+    ["show_rsvp", "Formulaire de présence"],
+    ["show_list", "La liste"]
+  ];
+  let settings = null, eventForm = null;
+  function renderEvent() {
+    eventForm = buildForm(EVENT_FIELDS, settings);
+    $("event-form").replaceChildren(el("div", { class: "panel" }, eventForm.box));
+    const box = $("toggles"); box.replaceChildren();
+    TOGGLES.forEach(([k, label]) => {
+      const id = "tg-" + k;
+      const cb = el("input", { type: "checkbox", id, role: "switch" }); cb.checked = !!settings[k];
+      box.append(el("label", { class: "switch", for: id, style: "margin:0;font-weight:500;font-size:1rem" }, el("span", { text: label }), cb));
+    });
+    $("mono").textContent = settings.logo || settings.names || "♡";
+  }
+  $("event-save").addEventListener("click", async () => {
+    $("event-save").disabled = true;
+    try {
+      const out = await eventForm.collect();
+      TOGGLES.forEach(([k]) => (out[k] = $("tg-" + k).checked));
+      const { error } = await db.from("settings").update(out).eq("id", 1);
+      if (error) { console.error(error); throw new Error("L'enregistrement n'a pas fonctionné. As-tu bien lancé le script SQL de mise à jour ?"); }
+      await eventForm.cleanupImages(out);
+      $("event-ok").hidden = false; setTimeout(() => ($("event-ok").hidden = true), 2500);
+      loadAll(true);
+    } catch (e) { alert(e.message); }
+    $("event-save").disabled = false;
   });
-  $("c-remove-img").addEventListener("click", () => { cPending = null; cImage = ""; $("c-file").value = ""; cPreview(""); });
-  $("c-save").addEventListener("click", async () => {
-    const row = { label: $("c-label").value.trim(), text: $("c-text").value.trim(), position: Number($("c-position").value) || 0, image_url: cImage };
-    if (!row.text && !cPending && !row.image_url) { $("c-error").textContent = "Ajoute au moins une phrase ou une photo."; $("c-error").hidden = false; return; }
-    $("c-save").disabled = true; $("c-error").hidden = true;
-    try { if (cPending) row.image_url = await uploadImage(cPending); }
-    catch (e) { $("c-save").disabled = false; $("c-error").textContent = e.message; $("c-error").hidden = false; return; }
-    const { error } = cEditing ? await db.from("story").update(row).eq("id", cEditing) : await db.from("story").insert(row);
-    $("c-save").disabled = false;
-    if (error) { console.error(error); $("c-error").textContent = "L'enregistrement n'a pas fonctionné."; $("c-error").hidden = false; return; }
-    if (cOriginal && cOriginal !== row.image_url) await removeStoredImage(cOriginal);
-    cReset(); loadAll();
+  $("pw-save").addEventListener("click", async () => {
+    $("pw-error").hidden = true;
+    const a = $("pw1").value, b = $("pw2").value;
+    if (a.length < 8) { $("pw-error").textContent = "Choisis au moins 8 caractères."; $("pw-error").hidden = false; return; }
+    if (a !== b) { $("pw-error").textContent = "Les deux mots de passe ne sont pas identiques."; $("pw-error").hidden = false; return; }
+    const { error } = await db.auth.updateUser({ password: a });
+    if (error) { $("pw-error").textContent = "Le changement n'a pas fonctionné (détail : " + error.message + ")."; $("pw-error").hidden = false; return; }
+    $("pw1").value = ""; $("pw2").value = ""; $("pw-ok").hidden = false; setTimeout(() => ($("pw-ok").hidden = true), 3000);
   });
 
-  function renderClaims(claims) {
+  // ---------- Export Excel ----------
+  function downloadCSV(name, headers, rows) {
+    const q = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const csv = "\ufeff" + [headers, ...rows].map((r) => r.map(q).join(";")).join("\r\n");
+    const a = el("a", { href: URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })), download: name });
+    document.body.append(a); a.click(); a.remove();
+  }
+
+  // ---------- Réponses ----------
+  let rsvps = [], claims = [];
+  function kpi(value, label) { return el("div", { class: "kpi" }, el("b", { text: String(value) }), el("span", { text: label })); }
+  function rsvpStats() {
+    const yes = rsvps.filter((r) => r.attending);
+    return {
+      total: rsvps.length,
+      people: yes.reduce((a, r) => a + (r.guests || 0), 0),
+      declined: rsvps.length - yes.length,
+      diets: yes.filter((r) => (r.diet || "").trim()).length
+    };
+  }
+  function renderRsvps() {
+    const st = rsvpStats();
+    $("rsvp-kpis").replaceChildren(kpi(st.total, "réponses reçues"), kpi(st.people, "personnes présentes"), kpi(st.declined, "ne viendront pas"), kpi(st.diets, "régimes ou allergies"));
+    const tb = $("rsvp-rows"); tb.replaceChildren();
+    if (!rsvps.length) tb.append(el("tr", null, el("td", { colspan: "8", class: "hint", text: "Pas encore de réponse." })));
+    rsvps.forEach((r) => {
+      const del = el("button", { class: "btn danger", type: "button", text: "Retirer" });
+      del.addEventListener("click", async () => {
+        if (!confirm("Retirer la réponse de " + r.name + " ?")) return;
+        const { error } = await db.from("rsvps").delete().eq("id", r.id);
+        if (error) alert("La suppression n'a pas fonctionné."); else loadAll();
+      });
+      tb.append(el("tr", null,
+        el("td", { text: r.name }),
+        el("td", null, el("span", { class: "tag " + (r.attending ? "blue" : "grey"), text: r.attending ? "Vient" : "Absent" })),
+        el("td", { text: r.attending ? String(r.guests) : "" }),
+        el("td", { text: r.diet || "" }), el("td", { text: r.message || "" }),
+        el("td", { text: (r.lang || "fr").toUpperCase() }), el("td", { text: fmtDate(r.created_at) }), el("td", null, del)));
+    });
+  }
+  $("rsvp-export").addEventListener("click", () => downloadCSV("reponses-invites.csv",
+    ["Nom", "Présence", "Personnes", "Régime ou allergies", "Message", "Langue", "Date"],
+    rsvps.map((r) => [r.name, r.attending ? "Oui" : "Non", r.attending ? r.guests : 0, r.diet, r.message, (r.lang || "fr").toUpperCase(), fmtDate(r.created_at)])));
+
+  // ---------- Choix sur la liste ----------
+  function renderClaims() {
     const tb = $("claims"); tb.replaceChildren();
     if (!claims.length) tb.append(el("tr", null, el("td", { colspan: "6", class: "hint", text: "Personne n'a encore rien choisi." })));
     const total = claims.reduce((a, c) => a + (Number(c.amount) || 0), 0);
@@ -301,164 +583,55 @@
         const { error } = await db.from("claims").delete().eq("id", c.id);
         if (error) alert("La suppression n'a pas fonctionné."); else loadAll();
       });
-      tb.append(el("tr", null,
-        el("td", { text: c.items ? c.items.title : "(supprimé)" }),
-        el("td", { text: c.name }),
-        el("td", { text: c.amount != null ? money(c.amount) : "" }),
-        el("td", { text: c.message || "" }),
-        el("td", { text: new Date(c.created_at).toLocaleDateString("fr-CH") }),
-        el("td", null, del)));
+      tb.append(el("tr", null, el("td", { text: c.items ? c.items.title : "(supprimé)" }), el("td", { text: c.name }),
+        el("td", { text: c.amount != null ? money(c.amount) : "" }), el("td", { text: c.message || "" }),
+        el("td", { text: fmtDate(c.created_at) }), el("td", null, del)));
     });
   }
+  $("claims-export").addEventListener("click", () => downloadCSV("choix-liste.csv",
+    ["Élément", "Nom", "Montant", "Message", "Date"],
+    claims.map((c) => [c.items ? c.items.title : "", c.name, c.amount != null ? c.amount : "", c.message, fmtDate(c.created_at)])));
 
-  function renderItems() {
-    const box = $("items"); box.replaceChildren();
-    if (!items.length) box.append(el("p", { class: "hint", text: "Aucun élément pour l'instant. Ajoute le premier ci-dessous." }));
-    items.forEach((i) => {
-      const edit = el("button", { class: "btn ghost", type: "button", text: "Modifier" });
-      edit.addEventListener("click", () => fillForm(i));
-      const del = el("button", { class: "btn danger", type: "button", text: "Supprimer" });
-      del.addEventListener("click", async () => {
-        if (!confirm("Supprimer « " + i.title + " » ? Les choix liés seront aussi supprimés.")) return;
-        const { error } = await db.from("items").delete().eq("id", i.id);
-        if (error) { alert("La suppression n'a pas fonctionné."); return; }
-        await removeStoredImage(i.image_url);
-        loadAll();
-      });
-      const thumb = i.image_url ? el("img", { src: i.image_url, alt: "" }) : null;
-      box.append(el("div", { class: "item-row" },
-        el("div", { style: "display:flex;gap:12px;align-items:center" }, thumb, el("span", null, document.createTextNode(i.title),
-          el("span", { class: "tag" + (i.kind === "fund" ? " fund" : ""), text: i.kind === "fund" ? "cagnotte" : "cadeau" }))),
-        el("div", { style: "display:flex;gap:6px" }, edit, del)));
-    });
-  }
-
-  // ---------- Photos ----------
-  let pendingFile = null;
-  let originalImage = "";
-  const BUCKET = "images";
-
-  function storedPath(url) {
-    const marker = "/storage/v1/object/public/" + BUCKET + "/";
-    const i = (url || "").indexOf(marker);
-    return i === -1 ? null : decodeURIComponent(url.slice(i + marker.length));
-  }
-  async function removeStoredImage(url) {
-    const p = storedPath(url);
-    if (p) await db.storage.from(BUCKET).remove([p]);
-  }
-  function showPreview(src) {
-    const img = $("f-preview");
-    if (src) { img.src = src; img.hidden = false; $("f-remove-img").hidden = false; }
-    else { img.removeAttribute("src"); img.hidden = true; $("f-remove-img").hidden = true; }
-  }
-  // Réduit la photo (max 1400 px) pour qu'elle charge vite et prenne peu de place
-  function shrink(file) {
-    return new Promise((resolve) => {
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        const scale = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
-        const c = document.createElement("canvas");
-        c.width = Math.round(img.naturalWidth * scale);
-        c.height = Math.round(img.naturalHeight * scale);
-        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-        URL.revokeObjectURL(url);
-        c.toBlob((b) => resolve(b), "image/jpeg", 0.85);
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
-      img.src = url;
-    });
-  }
-  async function uploadPending() { return uploadImage(pendingFile); }
-  async function uploadImage(file) {
-    const blob = await shrink(file);
-    if (!blob) throw new Error("Ce format d'image n'est pas lisible. Essaie avec un JPG ou un PNG.");
-    const id = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2));
-    const path = id + ".jpg";
-    const { error } = await db.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg", upsert: false });
-    if (error) throw new Error("L'envoi de la photo n'a pas fonctionné.");
-    return db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-  }
-  $("f-file").addEventListener("change", () => {
-    const f = $("f-file").files[0];
-    if (!f) return;
-    pendingFile = f;
-    $("f-image").value = "";
-    showPreview(URL.createObjectURL(f));
-  });
-  $("f-image").addEventListener("input", () => {
-    pendingFile = null; $("f-file").value = "";
-    showPreview($("f-image").value.trim());
-  });
-  $("f-remove-img").addEventListener("click", () => {
-    pendingFile = null; $("f-file").value = ""; $("f-image").value = ""; showPreview("");
-  });
-
-  function toggleKind() {
-    const fund = $("f-kind").value === "fund";
-    $("f-goal-wrap").hidden = !fund;
-    $("f-price-wrap").hidden = fund;
-  }
-  $("f-kind").addEventListener("change", toggleKind);
-
-  function resetForm() {
-    editingId = null;
-    ["f-title", "f-desc", "f-price", "f-goal", "f-image", "f-link"].forEach((id) => ($(id).value = ""));
-    $("f-position").value = "0"; $("f-kind").value = "gift";
-    $("f-save").textContent = "Ajouter"; $("form-title").textContent = "ajouter un élément";
-    $("f-cancel").hidden = true; $("f-error").hidden = true; toggleKind();
-    pendingFile = null; originalImage = ""; $("f-file").value = ""; showPreview("");
-  }
-  function fillForm(i) {
-    editingId = i.id;
-    $("f-kind").value = i.kind; $("f-title").value = i.title; $("f-desc").value = i.description;
-    $("f-price").value = i.price ?? ""; $("f-goal").value = i.goal ?? "";
-    $("f-image").value = i.image_url; $("f-link").value = i.link; $("f-position").value = i.position;
-    $("f-save").textContent = "Enregistrer"; $("form-title").textContent = "modifier « " + i.title + " »";
-    $("f-cancel").hidden = false; toggleKind();
-    pendingFile = null; originalImage = i.image_url; $("f-file").value = ""; showPreview(i.image_url);
-    $("form-title").scrollIntoView({ behavior: "smooth" });
-  }
-  $("f-cancel").addEventListener("click", resetForm);
-
-  $("f-save").addEventListener("click", async () => {
-    const kind = $("f-kind").value;
-    const row = {
-      kind,
-      title: $("f-title").value.trim(),
-      description: $("f-desc").value.trim(),
-      image_url: $("f-image").value.trim(),
-      link: $("f-link").value.trim(),
-      price: kind === "gift" ? numOrNull($("f-price").value) : null,
-      goal: kind === "fund" ? numOrNull($("f-goal").value) : null,
-      position: Number($("f-position").value) || 0
-    };
-    if (!row.title) { $("f-error").textContent = "Donne un titre à l'élément."; $("f-error").hidden = false; return; }
-    $("f-save").disabled = true;
-    $("f-error").hidden = true;
-    if (pendingFile) {
-      try { row.image_url = await uploadPending(); }
-      catch (e) { $("f-save").disabled = false; $("f-error").textContent = e.message; $("f-error").hidden = false; return; }
+  // ---------- Tableau de bord ----------
+  function renderDash() {
+    const st = rsvpStats();
+    let jx = "–";
+    if (settings && settings.event_date) {
+      const [y, m, d] = settings.event_date.split("-").map(Number);
+      const now = new Date(); now.setHours(0, 0, 0, 0);
+      const n = Math.round((new Date(y, m - 1, d) - now) / 86400000);
+      jx = n > 0 ? "J-" + n : n === 0 ? "Jour J" : "Passé";
     }
-    const q = editingId ? db.from("items").update(row).eq("id", editingId) : db.from("items").insert(row);
-    const { error } = await q;
-    $("f-save").disabled = false;
-    if (error) { console.error(error); $("f-error").textContent = "L'enregistrement n'a pas fonctionné."; $("f-error").hidden = false; return; }
-    if (originalImage && originalImage !== row.image_url) await removeStoredImage(originalImage);
-    resetForm(); loadAll();
-  });
+    const giftItems = data.items.filter((i) => i.kind === "gift");
+    const takenIds = new Set(claims.filter((c) => c.items && c.items.kind === "gift").map((c) => c.item_id));
+    const fundTotal = claims.reduce((a, c) => a + (Number(c.amount) || 0), 0);
+    $("kpis").replaceChildren(kpi(jx, "avant le jour J"), kpi(st.total, "réponses reçues"), kpi(st.people, "personnes présentes"),
+      kpi(st.diets, "régimes ou allergies"), kpi(takenIds.size + "/" + giftItems.length, "cadeaux pris"), kpi(money(fundTotal), "promis pour les cagnottes"));
+    const last = $("dash-last"); last.replaceChildren();
+    if (!rsvps.length) last.append(el("p", { class: "hint", text: "Pas encore de réponse." }));
+    rsvps.slice(0, 5).forEach((r) => last.append(el("div", { class: "item-row" },
+      el("span", null, el("span", { class: "tag " + (r.attending ? "blue" : "grey"), text: r.attending ? "Vient" : "Absent" }), document.createTextNode(r.name + (r.attending && r.guests > 1 ? " (" + r.guests + " pers.)" : ""))),
+      el("span", { class: "hint", text: fmtDate(r.created_at) }))));
+  }
 
-  $("s-save").addEventListener("click", async () => {
-    const { error } = await db.from("settings").update({
-      title: $("s-title").value.trim() || "notre histoire",
-      logo: $("s-logo").value.trim(),
-      intro: $("s-intro").value,
-      payment_info: $("s-pay").value
-    }).eq("id", 1);
-    if (error) { alert("L'enregistrement n'a pas fonctionné."); return; }
-    $("s-ok").hidden = false; setTimeout(() => ($("s-ok").hidden = true), 2000);
-  });
+  // ---------- Chargement ----------
+  async function loadAll(refreshEvent) {
+    const q = (t) => db.from(t).select("*").order("position").order("created_at");
+    const [s, p, i, st, it, rs, cl] = await Promise.all([
+      db.from("settings").select("*").eq("id", 1).maybeSingle(),
+      q("program"), q("infos"), q("story"), q("items"),
+      db.from("rsvps").select("*").order("created_at", { ascending: false }),
+      db.from("claims").select("*, items(title, kind)").order("created_at", { ascending: false })
+    ]);
+    const err = [s, p, i, st, it, rs, cl].find((r) => r.error);
+    if (err) { console.error(err.error); alert("Certaines données n'ont pas pu être chargées. As-tu bien lancé le script SQL de mise à jour ? (détail : " + err.error.message + ")"); }
+    settings = s.data || {};
+    data.program = p.data || []; data.infos = i.data || []; data.story = st.data || []; data.items = it.data || [];
+    rsvps = rs.data || []; claims = cl.data || [];
+    if (!eventForm || refreshEvent) renderEvent(); else $("mono").textContent = settings.logo || settings.names || "♡";
+    ["program", "infos", "story", "items"].forEach(renderColl);
+    renderRsvps(); renderClaims(); renderDash();
+  }
 
   start();
 })();

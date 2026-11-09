@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<title>Réponse</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💛</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Pinyon+Script&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script src="common.js"></script>
+</head>
+<body>
+<header class="site-head" id="site-head"></header>
+
+<main>
+  <section class="page-head wrap">
+    <h1 class="section-title"><span data-t="rsvp_a"></span> <span class="script" data-t="rsvp_b"></span><span data-t="rsvp_c"></span></h1>
+  </section>
+
+  <section class="rsvp-zone wrap">
+    <div class="rsvp-card">
+      <p class="lead" id="lead"></p>
+
+      <div class="rsvp-form" id="form-box">
+        <label for="r-name" data-t="f_name"></label>
+        <input id="r-name" maxlength="120" autocomplete="name">
+        <p class="hint" data-t="f_name_hint" style="margin-top:6px"></p>
+
+        <label id="coming-label" data-t="f_coming"></label>
+        <div class="choice" role="group" aria-labelledby="coming-label">
+          <button type="button" id="r-yes" aria-pressed="false" data-t="yes"></button>
+          <button type="button" id="r-no" aria-pressed="false" data-t="no"></button>
+        </div>
+
+        <div id="yes-fields" hidden>
+          <div class="grid2">
+            <div><label for="r-guests" data-t="f_guests"></label><input id="r-guests" type="number" min="1" max="20" value="1" inputmode="numeric"></div>
+            <div><label for="r-diet" data-t="f_diet"></label><input id="r-diet" maxlength="300" data-t-ph="f_diet_ph"></div>
+          </div>
+        </div>
+
+        <label for="r-msg" data-t="f_msg"></label>
+        <textarea id="r-msg" maxlength="1000"></textarea>
+
+        <p class="private-note" data-t="private_rsvp"></p>
+        <p class="error" id="r-error" hidden></p>
+        <div class="row"><button class="btn coral" type="button" id="r-send" data-t="send"></button></div>
+      </div>
+
+      <div class="rsvp-form done-box" id="done-box" hidden>
+        <span class="script" data-t="thanks_title"></span>
+        <p id="done-text"></p>
+        <button class="btn ghost" type="button" id="r-again" data-t="another"></button>
+      </div>
+
+      <div class="rsvp-form done-box" id="closed-box" hidden>
+        <p data-t="rsvp_closed"></p>
+      </div>
+    </div>
+  </section>
+  <p class="status" id="status" hidden></p>
+</main>
+
+<footer class="foot wrap" id="site-foot"></footer>
+
+<script>
+(async function () {
+  const S = window.Site, { t } = S;
+  const $ = (id) => document.getElementById(id);
+  const s = await S.init("rsvp");
+  if (!s) return;
+
+  const dl = S.parseDate(s.rsvp_deadline);
+  $("lead").textContent = t("rsvp_lead") + (dl ? " " + t("rsvp_deadline", { date: S.fmtLong(dl) }) : "");
+  if (!S.rsvpOpen(s)) { $("form-box").hidden = true; $("closed-box").hidden = false; return; }
+
+  let attending = null;
+  function setChoice(v) {
+    attending = v;
+    $("r-yes").setAttribute("aria-pressed", String(v === true));
+    $("r-no").setAttribute("aria-pressed", String(v === false));
+    $("yes-fields").hidden = v !== true;
+  }
+  $("r-yes").addEventListener("click", () => setChoice(true));
+  $("r-no").addEventListener("click", () => setChoice(false));
+  try { const n = localStorage.getItem("liste-nom"); if (n) $("r-name").value = n; } catch {}
+
+  function err(msg) { $("r-error").textContent = msg; $("r-error").hidden = false; }
+
+  $("r-send").addEventListener("click", async () => {
+    $("r-error").hidden = true;
+    const name = $("r-name").value.trim();
+    if (!name) return err(t("err_name"));
+    if (attending === null) return err(t("err_choice"));
+    $("r-send").disabled = true;
+    const { data, error } = await S.db.rpc("submit_rsvp", {
+      p_name: name, p_attending: attending,
+      p_guests: attending ? Math.max(1, Math.min(20, parseInt($("r-guests").value, 10) || 1)) : 0,
+      p_diet: attending ? $("r-diet").value.trim() : "",
+      p_message: $("r-msg").value.trim(), p_lang: S.lang
+    });
+    $("r-send").disabled = false;
+    if (error) { console.error(error); return err(t("err_send")); }
+    if (data === "ferme") { $("form-box").hidden = true; $("closed-box").hidden = false; return; }
+    try { localStorage.setItem("liste-nom", name); } catch {}
+    $("done-text").textContent = t(attending ? "thanks_yes" : "thanks_no", { name });
+    $("form-box").hidden = true; $("done-box").hidden = false;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  $("r-again").addEventListener("click", () => {
+    $("r-name").value = ""; $("r-msg").value = ""; $("r-diet").value = ""; $("r-guests").value = "1"; setChoice(null);
+    $("done-box").hidden = true; $("form-box").hidden = false; $("r-name").focus();
+  });
+})();
+</script>
+</body>
+</html>
