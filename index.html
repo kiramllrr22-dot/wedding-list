@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>notre histoire</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💙</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Pinyon+Script&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#" id="logo">♡</a>
+    <nav class="nav">
+      <a class="navlink" href="#histoire">notre histoire</a>
+      <a class="btn" href="#liste">la liste</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero wrap">
+    <h1 id="title"><span class="w1">notre</span><span class="w2">histoire</span></h1>
+    <div class="hero-foot">
+      <p class="intro" id="intro"></p>
+      <div class="jump">
+        <a href="#histoire"><span>(01)</span>notre histoire</a>
+        <a href="#liste"><span>(02)</span>la liste</a>
+        <a href="#savoir"><span>(03)</span>bon à savoir</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="story wrap" id="histoire"></section>
+
+  <section class="list" id="liste">
+    <div class="wrap">
+      <div class="list-head">
+        <div class="eyebrow">la liste</div>
+        <div>
+          <h2>de quoi nous <span class="script">faire plaisir</span></h2>
+          <p>Un cadeau, un bout de voyage, ou rien du tout : votre présence compte déjà beaucoup.</p>
+        </div>
+      </div>
+      <div id="funds"></div>
+      <ul class="gifts" id="gifts"></ul>
+      <p class="status" id="status">Chargement de la liste…</p>
+    </div>
+  </section>
+
+  <section class="faq wrap" id="savoir">
+    <h2>bon à <span class="script">savoir</span></h2>
+    <div>
+      <details>
+        <summary>comment ça marche ?</summary>
+        <p>Touche la petite icône sous un cadeau et laisse ton nom : il sera marqué comme pris pour les autres. Pour le voyage, chacun met ce qu'il veut, et plusieurs personnes peuvent participer.</p>
+      </details>
+      <details>
+        <summary>qui voit mon nom ?</summary>
+        <p>Personne d'autre que nous. Les autres invités voient seulement qu'un cadeau est pris, ou combien a été récolté pour le voyage.</p>
+      </details>
+      <details id="pay-faq" hidden>
+        <summary>comment payer ?</summary>
+        <p id="pay-text"></p>
+      </details>
+      <details>
+        <summary>je me suis trompé·e, je fais comment ?</summary>
+        <p>Pas de souci, écris-nous et on corrige.</p>
+      </details>
+    </div>
+  </section>
+
+  <footer class="foot wrap"><div class="big">merci</div></footer>
+</main>
+
+<dialog id="dialog">
+  <span class="pill" id="d-kind"></span>
+  <h2 id="d-title" style="margin-top:14px"></h2>
+  <p class="hint" id="d-sub"></p>
+  <div id="d-form">
+    <label for="d-name">ton nom</label>
+    <input id="d-name" maxlength="100" autocomplete="name">
+    <div id="d-amount-wrap" hidden>
+      <label for="d-amount">montant de ta participation (<span id="d-cur"></span>)</label>
+      <input id="d-amount" type="number" min="1" step="1" inputmode="decimal">
+    </div>
+    <label for="d-message">un petit mot (facultatif)</label>
+    <textarea id="d-message" maxlength="500"></textarea>
+    <p class="private-note">Ton nom et ton message ne sont visibles que par nous.</p>
+    <p class="error" id="d-error" hidden></p>
+    <div class="row">
+      <button class="btn ghost" id="d-cancel" type="button">retour</button>
+      <button class="btn" id="d-confirm" type="button">valider</button>
+    </div>
+  </div>
+  <div id="d-done" hidden>
+    <p id="d-done-text" style="font-size:1.1rem"></p>
+    <div id="d-done-payment" class="paybox" hidden></div>
+    <div class="row"><button class="btn" id="d-close" type="button">fermer</button></div>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  const cfg = window.LISTE_CONFIG || {};
+  const devise = cfg.DEVISE || "CHF";
+  const $ = (id) => document.getElementById(id);
+  const statusEl = $("status");
+
+  if (!window.supabase || !cfg.SUPABASE_URL || cfg.SUPABASE_URL.includes("xxxx")) {
+    statusEl.textContent = "La liste n'est pas encore configurée : renseigne config.js.";
+    statusEl.className = "status error";
+    return;
+  }
+  const db = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY, { auth: { persistSession: false } });
+
+  let settings = { title: "", intro: "", payment_info: "", logo: "" };
+  let current = null;
+
+  function el(tag, props, ...children) {
+    const n = document.createElement(tag);
+    if (props) for (const [k, v] of Object.entries(props)) {
+      if (k === "class") n.className = v; else if (k === "text") n.textContent = v; else n.setAttribute(k, v);
+    }
+    for (const c of children) if (c) n.append(c);
+    return n;
+  }
+  const ICON_GIFT = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v7.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V12"/><path d="M12 8v12.5"/><path d="M12 8C10.5 4.5 6.5 4 6.5 6.5S10 8 12 8z"/><path d="M12 8c1.5-3.5 5.5-4 5.5-1.5S14 8 12 8z"/></svg>';
+  const ICON_CHECK = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  function iconButton(label, extra) {
+    const b = el("button", { class: "icon-btn" + (extra ? " " + extra : ""), type: "button", "aria-label": label, title: label });
+    b.innerHTML = ICON_GIFT;
+    return b;
+  }
+  function safeUrl(u) {
+    try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : null; } catch { return null; }
+  }
+  function money(n) {
+    const v = Number(n) || 0;
+    return v.toLocaleString("fr-CH", { maximumFractionDigits: v % 1 ? 2 : 0 }) + " " + devise;
+  }
+
+  // Les photos et phrases apparaissent en douceur quand on fait défiler
+  const io = "IntersectionObserver" in window
+    ? new IntersectionObserver((entries) => entries.forEach((e) => {
+        if (e.isIntersecting) { e.target.classList.add("seen"); io.unobserve(e.target); }
+      }), { threshold: 0.2 })
+    : null;
+  function reveal(node) { node.classList.add("reveal"); if (io) io.observe(node); else node.classList.add("seen"); }
+
+  async function load() {
+    const timer = setTimeout(() => { statusEl.textContent = "Le chargement prend du temps. Recharge la page dans un moment."; }, 10000);
+    try {
+      const [s, items, st, story] = await Promise.all([
+        db.from("settings").select("*").eq("id", 1).maybeSingle(),
+        db.from("items").select("*").order("position").order("created_at"),
+        db.rpc("item_status"),
+        db.from("story").select("*").order("position").order("created_at")
+      ]);
+      clearTimeout(timer);
+      const err = s.error || items.error || st.error || story.error;
+      if (err) throw err;
+      settings = s.data || settings;
+      const status = {};
+      (st.data || []).forEach((r) => (status[r.item_id] = r));
+      renderHead();
+      renderStory(story.data || []);
+      renderList(items.data || [], status);
+    } catch (e) {
+      clearTimeout(timer);
+      console.error(e);
+      statusEl.textContent = "Impossible de charger la liste pour le moment. Réessaie dans quelques minutes.";
+      statusEl.className = "status error";
+    }
+  }
+
+  let headDone = false;
+  function renderHead() {
+    if (headDone) return; headDone = true;
+    const words = (settings.title || "notre histoire").trim().split(/\s+/);
+    const last = words.length > 1 ? words.pop() : null;
+    const h = $("title"); h.replaceChildren(el("span", { class: "w1", text: words.join(" ") }));
+    if (last) h.append(el("span", { class: "w2", text: last }));
+    document.title = (settings.title || "notre histoire").toLowerCase();
+    $("intro").textContent = settings.intro || "";
+    if (settings.logo) $("logo").textContent = settings.logo;
+    if (settings.payment_info) { $("pay-text").textContent = settings.payment_info; $("pay-faq").hidden = false; }
+  }
+
+  let storyDone = false;
+  function renderStory(chapters) {
+    if (storyDone) return; storyDone = true;
+    const box = $("histoire");
+    if (!chapters.length) { box.hidden = true; return; }
+    chapters.forEach((c) => {
+      const img = safeUrl(c.image_url);
+      const art = el("article", { class: "chapter" + (img ? "" : " no-photo") });
+      if (img) art.append(el("div", { class: "ph" }, el("img", { src: img, alt: "", loading: "lazy" })));
+      const txt = el("div", { class: "txt" });
+      if (c.label) txt.append(el("span", { class: "pill", text: c.label }));
+      if (c.text) txt.append(el("p", { text: c.text }));
+      art.append(txt);
+      box.append(art);
+      reveal(art);
+    });
+  }
+
+  function renderList(items, status) {
+    const funds = $("funds"); funds.replaceChildren();
+    const gifts = $("gifts"); gifts.replaceChildren();
+
+    items.filter((i) => i.kind === "fund").forEach((i) => {
+      const s = status[i.id] || { total: 0, contributors: 0 };
+      const img = safeUrl(i.image_url);
+      const card = el("div", { class: "fund" + (img ? "" : " no-img") });
+      if (img) card.append(el("div", { class: "fimg" }, el("img", { src: img, alt: "", loading: "lazy" })));
+      const body = el("div", { class: "fbody" }, el("span", { class: "pill", text: "voyage" }), el("h3", { text: i.title }));
+      if (i.description) body.append(el("p", { text: i.description }));
+      if (i.goal) {
+        const pct = Math.min(100, (Number(s.total) / Number(i.goal)) * 100);
+        const bar = el("div", { class: "bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(Math.round(pct)) });
+        const fill = el("span"); fill.style.width = pct + "%"; bar.append(fill); body.append(bar);
+      }
+      const label = i.goal ? money(s.total) + " sur " + money(i.goal) : (Number(s.total) > 0 ? money(s.total) + " récoltés" : "tout commence ici");
+      const who = s.contributors ? (s.contributors === 1 ? "1 participation" : s.contributors + " participations") : "";
+      const b = iconButton("participer au voyage", "light");
+      b.addEventListener("click", () => openDialog(i));
+      body.append(el("div", { class: "fund-meta" }, el("div", null, el("strong", { text: label }), who ? el("small", { text: who }) : null), b));
+      card.append(body);
+      funds.append(el("div", { class: "fund-zone" }, card));
+    });
+
+    items.filter((i) => i.kind === "gift").forEach((i) => {
+      const taken = status[i.id] && status[i.id].claimed;
+      const img = safeUrl(i.image_url);
+      const li = el("li", { class: "gift" + (taken ? " taken" : "") });
+      if (img) li.append(el("div", { class: "gimg" }, el("img", { src: img, alt: "", loading: "lazy" })));
+      const body = el("div", { class: "gbody" }, el("h3", { text: i.title }));
+      if (i.description) body.append(el("p", { class: "desc", text: i.description }));
+      const meta = el("div", { class: "meta" });
+      if (i.price != null) meta.append(el("span", { text: "env. " + money(i.price) }));
+      const link = safeUrl(i.link);
+      if (link) meta.append(el("a", { href: link, target: "_blank", rel: "noopener noreferrer", text: "voir" }));
+      const act = el("div", { class: "act" }, meta);
+      if (taken) {
+        const mark = el("span", { class: "taken-mark", title: "déjà pris", "aria-label": "déjà pris" });
+        mark.innerHTML = ICON_CHECK;
+        act.append(mark);
+      } else {
+        const b = iconButton("choisir ce cadeau");
+        b.addEventListener("click", () => openDialog(i));
+        act.append(b);
+      }
+      body.append(act);
+      li.append(body);
+      gifts.append(li);
+    });
+
+    if (!items.length) { statusEl.textContent = "La liste arrive bientôt."; statusEl.className = "status"; statusEl.hidden = false; }
+    else statusEl.hidden = true;
+  }
+
+  function openDialog(item) {
+    current = item;
+    const isFund = item.kind === "fund";
+    $("d-kind").textContent = isFund ? "voyage" : "cadeau";
+    $("d-title").textContent = item.title;
+    $("d-sub").textContent = isFund ? "Le montant que tu veux, petit ou grand." : "Il sera marqué comme pris pour les autres.";
+    $("d-amount-wrap").hidden = !isFund;
+    $("d-cur").textContent = devise;
+    $("d-amount").value = ""; $("d-message").value = "";
+    $("d-error").hidden = true; $("d-form").hidden = false; $("d-done").hidden = true;
+    $("d-confirm").disabled = false;
+    $("d-confirm").textContent = "valider";
+    $("dialog").showModal();
+    $("d-name").focus();
+  }
+  function showError(msg) { $("d-error").textContent = msg; $("d-error").hidden = false; }
+
+  $("d-cancel").addEventListener("click", () => $("dialog").close());
+  $("d-close").addEventListener("click", () => $("dialog").close());
+
+  $("d-confirm").addEventListener("click", async () => {
+    const name = $("d-name").value.trim();
+    const message = $("d-message").value.trim();
+    const isFund = current.kind === "fund";
+    const amount = isFund ? Number($("d-amount").value) : null;
+    if (!name) return showError("Indique ton nom pour qu'on sache qui remercier.");
+    if (isFund && !(amount > 0)) return showError("Indique un montant supérieur à 0.");
+    $("d-confirm").disabled = true;
+    const { data, error } = await db.rpc("claim_item", { p_item: current.id, p_name: name, p_message: message, p_amount: amount });
+    if (error) { console.error(error); $("d-confirm").disabled = false; return showError("L'enregistrement n'a pas fonctionné. Vérifie ta connexion et réessaie."); }
+    if (data === "deja_pris") { $("d-confirm").disabled = false; showError("Quelqu'un vient de le choisir juste avant toi."); load(); return; }
+    try { localStorage.setItem("liste-nom", name); } catch {}
+    $("d-form").hidden = true; $("d-done").hidden = false;
+    $("d-done-text").textContent = "Merci " + name + ", c'est noté.";
+    const pay = $("d-done-payment");
+    if (isFund && settings.payment_info) { pay.textContent = settings.payment_info; pay.hidden = false; } else pay.hidden = true;
+    load();
+  });
+
+  try { const n = localStorage.getItem("liste-nom"); if (n) $("d-name").value = n; } catch {}
+  load();
+})();
+</script>
+</body>
+</html>

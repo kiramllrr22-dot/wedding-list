@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Gérer ma liste</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔑</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Pinyon+Script&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<style>
+  .page { max-width: 860px; margin: 0 auto; padding: 48px 22px 80px; }
+  .page h1 { font-family: var(--display); font-size: clamp(2.2rem, 6vw, 3.2rem); letter-spacing: -0.04em; line-height: 1; margin: 0 0 8px; font-weight: 700; }
+  .page h2 { font-family: var(--display); font-size: 1.6rem; letter-spacing: -0.03em; margin: 52px 0 6px; font-weight: 600; }
+  .panel { background: #fff; border: 1.5px solid var(--line); border-radius: 22px; padding: 22px; margin-top: 18px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 700; color: var(--muted); }
+  .scroll { overflow-x: auto; }
+  .item-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .item-row:last-child { border-bottom: 0; }
+  .tag { font-size: 0.72rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: var(--card); color: var(--muted); margin-left: 6px; text-transform: uppercase; letter-spacing: .06em; }
+  .tag.fund { background: var(--sky); color: var(--blue); }
+  .ok { color: var(--blue); font-weight: 700; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .topbar h1 { margin: 0; }
+  .photo-field { display: flex; gap: 14px; align-items: flex-start; }
+  #f-preview, #c-preview { width: 96px; height: 96px; object-fit: cover; border-radius: 14px; background: var(--sky); flex: none; }
+  .item-row img { width: 44px; height: 44px; object-fit: cover; border-radius: 10px; flex: none; }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <section id="login">
+    <h1>Gérer ma liste</h1>
+    <div class="panel">
+      <label for="email">E-mail</label>
+      <input id="email" type="email" autocomplete="username">
+      <label for="password">Mot de passe</label>
+      <input id="password" type="password" autocomplete="current-password">
+      <p class="error" id="login-error" hidden></p>
+      <div class="row"><button class="btn" id="login-btn" type="button">Se connecter</button></div>
+    </div>
+  </section>
+
+  <section id="app" hidden>
+    <div class="topbar">
+      <h1>Gérer ma liste</h1>
+      <div style="display:flex;gap:8px">
+        <a class="btn ghost" href="./" target="_blank" style="text-decoration:none">Voir la liste</a>
+        <button class="btn ghost" id="logout" type="button">Se déconnecter</button>
+      </div>
+    </div>
+
+    <h2>Notre histoire</h2>
+    <p class="hint">Les photos et petites phrases qui défilent en haut de la page, dans l'ordre choisi.</p>
+    <div class="panel" id="chapters"></div>
+    <div class="panel">
+      <h3 id="c-form-title" style="margin:0 0 4px;font-size:1.15rem">ajouter un moment</h3>
+      <div class="grid2">
+        <div><label for="c-label">Petite étiquette (ex. 2019, le début)</label><input id="c-label" maxlength="40"></div>
+        <div><label for="c-position">Ordre d'affichage</label><input id="c-position" type="number" step="1" value="0"></div>
+      </div>
+      <label for="c-text">La phrase</label>
+      <textarea id="c-text" maxlength="300"></textarea>
+      <label for="c-file">Photo</label>
+      <div class="photo-field">
+        <img id="c-preview" alt="" hidden>
+        <div style="flex:1;min-width:0">
+          <input id="c-file" type="file" accept="image/*">
+          <button class="btn danger" id="c-remove-img" type="button" hidden style="margin-top:6px">retirer la photo</button>
+        </div>
+      </div>
+      <p class="error" id="c-error" hidden></p>
+      <div class="row">
+        <button class="btn ghost" id="c-cancel" type="button" hidden>annuler la modification</button>
+        <button class="btn" id="c-save" type="button">ajouter</button>
+      </div>
+    </div>
+
+    <h2>Qui a choisi quoi</h2>
+    <p class="hint" id="claims-summary"></p>
+    <div class="panel scroll"><table>
+      <thead><tr><th>Élément</th><th>Nom</th><th>Montant</th><th>Message</th><th>Date</th><th></th></tr></thead>
+      <tbody id="claims"></tbody>
+    </table></div>
+
+    <h2>Éléments de la liste</h2>
+    <div class="panel" id="items"></div>
+
+    <h2 id="form-title">Ajouter un élément</h2>
+    <div class="panel">
+      <label for="f-kind">Type</label>
+      <select id="f-kind">
+        <option value="gift">Cadeau (une seule personne l'offre)</option>
+        <option value="fund">Cagnotte (plusieurs personnes participent, ex. le voyage)</option>
+      </select>
+      <label for="f-title">Titre</label>
+      <input id="f-title" maxlength="150">
+      <label for="f-desc">Description (facultatif)</label>
+      <textarea id="f-desc"></textarea>
+      <div class="grid2">
+        <div id="f-price-wrap"><label for="f-price">Prix indicatif (facultatif)</label><input id="f-price" type="number" min="0" step="1"></div>
+        <div id="f-goal-wrap" hidden><label for="f-goal">Objectif à atteindre (facultatif)</label><input id="f-goal" type="number" min="1" step="1"></div>
+        <div><label for="f-position">Ordre d'affichage</label><input id="f-position" type="number" step="1" value="0"></div>
+      </div>
+      <label for="f-file">Photo (facultatif)</label>
+      <div class="photo-field">
+        <img id="f-preview" alt="" hidden>
+        <div style="flex:1;min-width:0">
+          <input id="f-file" type="file" accept="image/*">
+          <p class="hint" style="margin:6px 0 0">Depuis ton ordinateur ou ton téléphone. Ou colle le lien d'une image trouvée en ligne :</p>
+          <input id="f-image" type="url" placeholder="https://…" style="margin-top:6px">
+          <button class="btn danger" id="f-remove-img" type="button" hidden style="margin-top:6px">Retirer la photo</button>
+        </div>
+      </div>
+      <label for="f-link">Lien vers le produit (facultatif)</label>
+      <input id="f-link" type="url">
+      <p class="error" id="f-error" hidden></p>
+      <div class="row">
+        <button class="btn ghost" id="f-cancel" type="button" hidden>Annuler la modification</button>
+        <button class="btn" id="f-save" type="button">Ajouter</button>
+      </div>
+    </div>
+
+    <h2>Textes du site</h2>
+    <div class="panel">
+      <label for="s-title">Titre</label>
+      <input id="s-title" maxlength="120">
+      <p class="hint" style="margin-top:6px">Le dernier mot du titre s'affiche en italique bleu.</p>
+      <label for="s-logo">Petit logo en haut à gauche (ex. k & m)</label>
+      <input id="s-logo" maxlength="20">
+      <label for="s-intro">Texte d'accueil</label>
+      <textarea id="s-intro"></textarea>
+      <label for="s-pay">Comment payer (Twint, IBAN… affiché en bas de la liste et après une participation)</label>
+      <textarea id="s-pay"></textarea>
+      <div class="row"><span class="ok" id="s-ok" hidden>Enregistré</span><button class="btn" id="s-save" type="button">Enregistrer les textes</button></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  const cfg = window.LISTE_CONFIG || {};
+  const devise = cfg.DEVISE || "CHF";
+  const $ = (id) => document.getElementById(id);
+  if (!window.supabase || !cfg.SUPABASE_URL || cfg.SUPABASE_URL.includes("xxxx")) {
+    $("login-error").textContent = "Renseigne d'abord config.js.";
+    $("login-error").hidden = false;
+    return;
+  }
+  const db = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
+  let items = [];
+  let editingId = null;
+
+  function el(tag, props, ...children) {
+    const n = document.createElement(tag);
+    if (props) for (const [k, v] of Object.entries(props)) {
+      if (k === "class") n.className = v; else if (k === "text") n.textContent = v; else n.setAttribute(k, v);
+    }
+    for (const c of children) if (c != null) n.append(c);
+    return n;
+  }
+  const money = (n) => (Number(n) || 0).toLocaleString("fr-CH", { maximumFractionDigits: 2 }) + " " + devise;
+  const numOrNull = (v) => (v === "" || v == null ? null : Number(v));
+
+  async function start() {
+    const { data } = await db.auth.getSession();
+    if (data.session) enter(); else { $("login").hidden = false; $("app").hidden = true; }
+  }
+
+  async function enter() {
+    const { data: isAdmin, error } = await db.rpc("is_admin");
+    if (error || !isAdmin) {
+      await db.auth.signOut();
+      $("login-error").textContent = "Ce compte n'a pas accès à la gestion de la liste.";
+      $("login-error").hidden = false;
+      return;
+    }
+    $("login").hidden = true; $("app").hidden = false;
+    loadAll();
+  }
+
+  $("login-btn").addEventListener("click", async () => {
+    $("login-error").hidden = true;
+    const { error } = await db.auth.signInWithPassword({ email: $("email").value.trim(), password: $("password").value });
+    if (error) { $("login-error").textContent = "E-mail ou mot de passe incorrect."; $("login-error").hidden = false; return; }
+    enter();
+  });
+  $("password").addEventListener("keydown", (e) => { if (e.key === "Enter") $("login-btn").click(); });
+  $("logout").addEventListener("click", async () => { await db.auth.signOut(); location.reload(); });
+
+  async function loadAll() {
+    const [s, it, cl, st] = await Promise.all([
+      db.from("settings").select("*").eq("id", 1).maybeSingle(),
+      db.from("items").select("*").order("position").order("created_at"),
+      db.from("claims").select("*, items(title, kind)").order("created_at", { ascending: false }),
+      db.from("story").select("*").order("position").order("created_at")
+    ]);
+    if (s.data) { $("s-title").value = s.data.title; $("s-intro").value = s.data.intro; $("s-pay").value = s.data.payment_info; $("s-logo").value = s.data.logo || ""; }
+    items = it.data || [];
+    renderItems();
+    renderClaims(cl.data || []);
+    chapters = st.data || [];
+    renderChapters();
+  }
+
+  // ---------- Notre histoire ----------
+  let chapters = [];
+  let cEditing = null, cPending = null, cOriginal = "", cImage = "";
+  function cPreview(src) {
+    const img = $("c-preview");
+    if (src) { img.src = src; img.hidden = false; $("c-remove-img").hidden = false; }
+    else { img.removeAttribute("src"); img.hidden = true; $("c-remove-img").hidden = true; }
+  }
+  function renderChapters() {
+    const box = $("chapters"); box.replaceChildren();
+    if (!chapters.length) box.append(el("p", { class: "hint", text: "Aucun moment pour l'instant. Ajoute le premier ci-dessous." }));
+    chapters.forEach((c) => {
+      const edit = el("button", { class: "btn ghost", type: "button", text: "modifier" });
+      edit.addEventListener("click", () => {
+        cEditing = c.id; cPending = null; cOriginal = c.image_url; cImage = c.image_url;
+        $("c-label").value = c.label; $("c-text").value = c.text; $("c-position").value = c.position;
+        $("c-file").value = ""; cPreview(c.image_url);
+        $("c-save").textContent = "enregistrer"; $("c-cancel").hidden = false;
+        $("c-form-title").textContent = "modifier ce moment";
+        $("c-form-title").scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      const del = el("button", { class: "btn danger", type: "button", text: "supprimer" });
+      del.addEventListener("click", async () => {
+        if (!confirm("Supprimer ce moment ?")) return;
+        const { error } = await db.from("story").delete().eq("id", c.id);
+        if (error) { alert("La suppression n'a pas fonctionné."); return; }
+        await removeStoredImage(c.image_url);
+        loadAll();
+      });
+      const thumb = c.image_url ? el("img", { src: c.image_url, alt: "" }) : null;
+      box.append(el("div", { class: "item-row" },
+        el("div", { style: "display:flex;gap:12px;align-items:center;min-width:0" }, thumb,
+          el("span", null, c.label ? el("span", { class: "tag", style: "margin:0 8px 0 0", text: c.label }) : null, document.createTextNode(c.text || ""))),
+        el("div", { style: "display:flex;gap:6px" }, edit, del)));
+    });
+  }
+  function cReset() {
+    cEditing = null; cPending = null; cOriginal = ""; cImage = "";
+    $("c-label").value = ""; $("c-text").value = ""; $("c-position").value = String((chapters.length + 1) * 10);
+    $("c-file").value = ""; cPreview(""); $("c-error").hidden = true;
+    $("c-save").textContent = "ajouter"; $("c-cancel").hidden = true; $("c-form-title").textContent = "ajouter un moment";
+  }
+  $("c-cancel").addEventListener("click", cReset);
+  $("c-file").addEventListener("change", () => {
+    const f = $("c-file").files[0]; if (!f) return;
+    cPending = f; cPreview(URL.createObjectURL(f));
+  });
+  $("c-remove-img").addEventListener("click", () => { cPending = null; cImage = ""; $("c-file").value = ""; cPreview(""); });
+  $("c-save").addEventListener("click", async () => {
+    const row = { label: $("c-label").value.trim(), text: $("c-text").value.trim(), position: Number($("c-position").value) || 0, image_url: cImage };
+    if (!row.text && !cPending && !row.image_url) { $("c-error").textContent = "Ajoute au moins une phrase ou une photo."; $("c-error").hidden = false; return; }
+    $("c-save").disabled = true; $("c-error").hidden = true;
+    try { if (cPending) row.image_url = await uploadImage(cPending); }
+    catch (e) { $("c-save").disabled = false; $("c-error").textContent = e.message; $("c-error").hidden = false; return; }
+    const { error } = cEditing ? await db.from("story").update(row).eq("id", cEditing) : await db.from("story").insert(row);
+    $("c-save").disabled = false;
+    if (error) { console.error(error); $("c-error").textContent = "L'enregistrement n'a pas fonctionné."; $("c-error").hidden = false; return; }
+    if (cOriginal && cOriginal !== row.image_url) await removeStoredImage(cOriginal);
+    cReset(); loadAll();
+  });
+
+  function renderClaims(claims) {
+    const tb = $("claims"); tb.replaceChildren();
+    if (!claims.length) tb.append(el("tr", null, el("td", { colspan: "6", class: "hint", text: "Personne n'a encore rien choisi." })));
+    const total = claims.reduce((a, c) => a + (Number(c.amount) || 0), 0);
+    const gifts = claims.filter((c) => c.items && c.items.kind === "gift").length;
+    $("claims-summary").textContent = gifts + " cadeau(x) réservé(s), " + money(total) + " promis pour les cagnottes.";
+    claims.forEach((c) => {
+      const del = el("button", { class: "btn danger", type: "button", text: "Retirer" });
+      del.addEventListener("click", async () => {
+        if (!confirm("Retirer le choix de " + c.name + " ? L'élément redeviendra disponible.")) return;
+        const { error } = await db.from("claims").delete().eq("id", c.id);
+        if (error) alert("La suppression n'a pas fonctionné."); else loadAll();
+      });
+      tb.append(el("tr", null,
+        el("td", { text: c.items ? c.items.title : "(supprimé)" }),
+        el("td", { text: c.name }),
+        el("td", { text: c.amount != null ? money(c.amount) : "" }),
+        el("td", { text: c.message || "" }),
+        el("td", { text: new Date(c.created_at).toLocaleDateString("fr-CH") }),
+        el("td", null, del)));
+    });
+  }
+
+  function renderItems() {
+    const box = $("items"); box.replaceChildren();
+    if (!items.length) box.append(el("p", { class: "hint", text: "Aucun élément pour l'instant. Ajoute le premier ci-dessous." }));
+    items.forEach((i) => {
+      const edit = el("button", { class: "btn ghost", type: "button", text: "Modifier" });
+      edit.addEventListener("click", () => fillForm(i));
+      const del = el("button", { class: "btn danger", type: "button", text: "Supprimer" });
+      del.addEventListener("click", async () => {
+        if (!confirm("Supprimer « " + i.title + " » ? Les choix liés seront aussi supprimés.")) return;
+        const { error } = await db.from("items").delete().eq("id", i.id);
+        if (error) { alert("La suppression n'a pas fonctionné."); return; }
+        await removeStoredImage(i.image_url);
+        loadAll();
+      });
+      const thumb = i.image_url ? el("img", { src: i.image_url, alt: "" }) : null;
+      box.append(el("div", { class: "item-row" },
+        el("div", { style: "display:flex;gap:12px;align-items:center" }, thumb, el("span", null, document.createTextNode(i.title),
+          el("span", { class: "tag" + (i.kind === "fund" ? " fund" : ""), text: i.kind === "fund" ? "cagnotte" : "cadeau" }))),
+        el("div", { style: "display:flex;gap:6px" }, edit, del)));
+    });
+  }
+
+  // ---------- Photos ----------
+  let pendingFile = null;
+  let originalImage = "";
+  const BUCKET = "images";
+
+  function storedPath(url) {
+    const marker = "/storage/v1/object/public/" + BUCKET + "/";
+    const i = (url || "").indexOf(marker);
+    return i === -1 ? null : decodeURIComponent(url.slice(i + marker.length));
+  }
+  async function removeStoredImage(url) {
+    const p = storedPath(url);
+    if (p) await db.storage.from(BUCKET).remove([p]);
+  }
+  function showPreview(src) {
+    const img = $("f-preview");
+    if (src) { img.src = src; img.hidden = false; $("f-remove-img").hidden = false; }
+    else { img.removeAttribute("src"); img.hidden = true; $("f-remove-img").hidden = true; }
+  }
+  // Réduit la photo (max 1400 px) pour qu'elle charge vite et prenne peu de place
+  function shrink(file) {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.naturalWidth * scale);
+        c.height = Math.round(img.naturalHeight * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob((b) => resolve(b), "image/jpeg", 0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
+  }
+  async function uploadPending() { return uploadImage(pendingFile); }
+  async function uploadImage(file) {
+    const blob = await shrink(file);
+    if (!blob) throw new Error("Ce format d'image n'est pas lisible. Essaie avec un JPG ou un PNG.");
+    const id = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2));
+    const path = id + ".jpg";
+    const { error } = await db.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg", upsert: false });
+    if (error) throw new Error("L'envoi de la photo n'a pas fonctionné.");
+    return db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  }
+  $("f-file").addEventListener("change", () => {
+    const f = $("f-file").files[0];
+    if (!f) return;
+    pendingFile = f;
+    $("f-image").value = "";
+    showPreview(URL.createObjectURL(f));
+  });
+  $("f-image").addEventListener("input", () => {
+    pendingFile = null; $("f-file").value = "";
+    showPreview($("f-image").value.trim());
+  });
+  $("f-remove-img").addEventListener("click", () => {
+    pendingFile = null; $("f-file").value = ""; $("f-image").value = ""; showPreview("");
+  });
+
+  function toggleKind() {
+    const fund = $("f-kind").value === "fund";
+    $("f-goal-wrap").hidden = !fund;
+    $("f-price-wrap").hidden = fund;
+  }
+  $("f-kind").addEventListener("change", toggleKind);
+
+  function resetForm() {
+    editingId = null;
+    ["f-title", "f-desc", "f-price", "f-goal", "f-image", "f-link"].forEach((id) => ($(id).value = ""));
+    $("f-position").value = "0"; $("f-kind").value = "gift";
+    $("f-save").textContent = "Ajouter"; $("form-title").textContent = "ajouter un élément";
+    $("f-cancel").hidden = true; $("f-error").hidden = true; toggleKind();
+    pendingFile = null; originalImage = ""; $("f-file").value = ""; showPreview("");
+  }
+  function fillForm(i) {
+    editingId = i.id;
+    $("f-kind").value = i.kind; $("f-title").value = i.title; $("f-desc").value = i.description;
+    $("f-price").value = i.price ?? ""; $("f-goal").value = i.goal ?? "";
+    $("f-image").value = i.image_url; $("f-link").value = i.link; $("f-position").value = i.position;
+    $("f-save").textContent = "Enregistrer"; $("form-title").textContent = "modifier « " + i.title + " »";
+    $("f-cancel").hidden = false; toggleKind();
+    pendingFile = null; originalImage = i.image_url; $("f-file").value = ""; showPreview(i.image_url);
+    $("form-title").scrollIntoView({ behavior: "smooth" });
+  }
+  $("f-cancel").addEventListener("click", resetForm);
+
+  $("f-save").addEventListener("click", async () => {
+    const kind = $("f-kind").value;
+    const row = {
+      kind,
+      title: $("f-title").value.trim(),
+      description: $("f-desc").value.trim(),
+      image_url: $("f-image").value.trim(),
+      link: $("f-link").value.trim(),
+      price: kind === "gift" ? numOrNull($("f-price").value) : null,
+      goal: kind === "fund" ? numOrNull($("f-goal").value) : null,
+      position: Number($("f-position").value) || 0
+    };
+    if (!row.title) { $("f-error").textContent = "Donne un titre à l'élément."; $("f-error").hidden = false; return; }
+    $("f-save").disabled = true;
+    $("f-error").hidden = true;
+    if (pendingFile) {
+      try { row.image_url = await uploadPending(); }
+      catch (e) { $("f-save").disabled = false; $("f-error").textContent = e.message; $("f-error").hidden = false; return; }
+    }
+    const q = editingId ? db.from("items").update(row).eq("id", editingId) : db.from("items").insert(row);
+    const { error } = await q;
+    $("f-save").disabled = false;
+    if (error) { console.error(error); $("f-error").textContent = "L'enregistrement n'a pas fonctionné."; $("f-error").hidden = false; return; }
+    if (originalImage && originalImage !== row.image_url) await removeStoredImage(originalImage);
+    resetForm(); loadAll();
+  });
+
+  $("s-save").addEventListener("click", async () => {
+    const { error } = await db.from("settings").update({
+      title: $("s-title").value.trim() || "notre histoire",
+      logo: $("s-logo").value.trim(),
+      intro: $("s-intro").value,
+      payment_info: $("s-pay").value
+    }).eq("id", 1);
+    if (error) { alert("L'enregistrement n'a pas fonctionné."); return; }
+    $("s-ok").hidden = false; setTimeout(() => ($("s-ok").hidden = true), 2000);
+  });
+
+  start();
+})();
+</script>
+</body>
+</html>
