@@ -4,6 +4,6 @@
 // c'est la base de données qui décide qui a le droit de lire quoi.
 window.LISTE_CONFIG = {
   SUPABASE_URL: "https://hvjmotznhvevfbbcvleb.supabase.co",
-  SUPABASE_KEY: "sb_publishable_vVRbsCwWG5dpXRikm7LxUg_BDMFG8Phe",
+  SUPABASE_KEY: "sb_publishable_vVRbsCwWG5dpXRikm7LxUg_BDMFG8Ph",
   DEVISE: "CHF"
 };
