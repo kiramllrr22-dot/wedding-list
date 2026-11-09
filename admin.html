@@ -24,6 +24,7 @@
     padding: 10px 12px; border-radius: 10px; cursor: pointer; }
   .side button:hover { background: rgba(255,255,255,.08); }
   .side button[aria-current="true"] { background: var(--fund); color: #fff; font-weight: 600; }
+  .side .side-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; opacity: .6; padding: 18px 12px 4px; }
   .side .bottom { margin-top: 18px; border-top: 1px solid rgba(255,255,255,.15); padding-top: 12px; }
   .side a { color: inherit; text-decoration: none; display: block; padding: 10px 12px; border-radius: 10px; }
   .side a:hover { background: rgba(255,255,255,.08); }
@@ -67,7 +68,7 @@
   @media (max-width: 820px) {
     .shell { grid-template-columns: 1fr; }
     .side { position: sticky; top: 0; height: auto; z-index: 10; display: flex; gap: 4px; overflow-x: auto; padding: 10px; }
-    .side .mono, .side .bottom { display: none; }
+    .side .mono, .side .bottom, .side .side-label { display: none; }
     .side button { width: auto; white-space: nowrap; }
     .grid2a { grid-template-columns: 1fr; }
   }
@@ -97,6 +98,12 @@
     <button type="button" data-tab="story">Notre histoire</button>
     <button type="button" data-tab="rsvps">Invités et réponses</button>
     <button type="button" data-tab="list">La liste</button>
+    <div class="side-label">Organisation · privé</div>
+    <button type="button" data-tab="plan-tasks">Tâches</button>
+    <button type="button" data-tab="plan-budget">Budget</button>
+    <button type="button" data-tab="plan-savings">Épargne</button>
+    <button type="button" data-tab="plan-guests">Liste d'invités</button>
+    <button type="button" data-tab="plan-notes">Notes</button>
     <div class="bottom">
       <a href="./" target="_blank" rel="noopener">Voir le site ↗</a>
       <button type="button" id="logout">Se déconnecter</button>
@@ -174,9 +181,33 @@
       <h2>Cadeaux et cagnotte</h2>
       <div data-coll="items"></div>
     </section>
+
+    <section data-pane="plan-tasks" hidden>
+      <h1>Tâches</h1>
+      <p class="hint">Visible seulement par vous deux. Coche, déplace entre Urgent / Bientôt / Plus tard, filtre par thème.</p>
+      <div id="plan-tasks"></div>
+    </section>
+    <section data-pane="plan-budget" hidden>
+      <h1>Budget</h1>
+      <div id="plan-budget"></div>
+    </section>
+    <section data-pane="plan-savings" hidden>
+      <h1>Épargne</h1>
+      <div id="plan-savings"></div>
+    </section>
+    <section data-pane="plan-guests" hidden>
+      <h1>Liste d'invités</h1>
+      <p class="hint">Votre plan : combien de personnes au civil, à la cérémonie et au souper. (Les réponses reçues via le site sont dans « Invités et réponses ».)</p>
+      <div id="plan-guests"></div>
+    </section>
+    <section data-pane="plan-notes" hidden>
+      <h1>Notes</h1>
+      <div id="plan-notes"></div>
+    </section>
   </main>
 </div>
 
+<script src="planner.js"></script>
 <script>
 (function () {
   const cfg = window.LISTE_CONFIG || {};
@@ -218,6 +249,7 @@
     $("login").hidden = true; $("app").hidden = false;
     showTab(location.hash.slice(1) || "dash");
     loadAll();
+    if (window.Planner) window.Planner.start({ db, el });
   }
   $("login-btn").addEventListener("click", async () => {
     $("login-error").hidden = true;
@@ -236,13 +268,14 @@
   $("logout").addEventListener("click", async () => { await db.auth.signOut(); location.reload(); });
 
   // ---------- Onglets ----------
-  const TABS = ["dash", "event", "program", "infos", "story", "rsvps", "list"];
+  const TABS = ["dash", "event", "program", "infos", "story", "rsvps", "list", "plan-tasks", "plan-budget", "plan-savings", "plan-guests", "plan-notes"];
   function showTab(name) {
     if (!TABS.includes(name)) name = "dash";
     document.querySelectorAll("[data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== name));
     document.querySelectorAll("#side [data-tab]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.tab === name)));
     history.replaceState(null, "", "#" + name);
     window.scrollTo(0, 0);
+    if (window.Planner) window.Planner.onShow(name);
   }
   document.querySelectorAll("#side [data-tab]").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
 
