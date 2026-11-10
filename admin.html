@@ -13,7 +13,13 @@
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <style>
-  body { font-size: 16px; }
+  body { font-size: 16px; --display: "Instrument Sans", system-ui, Arial, sans-serif; }
+  /* Titres plus sobres et plus petits (la police large Syne est réservée au site des invités) */
+  .login h1, .main h1, .main h2, .main h3, dialog h2, .kpi b, .pl-target { font-weight: 600 !important; letter-spacing: -0.02em !important; }
+  .main h1 { font-size: clamp(1.6rem, 3vw, 2rem) !important; margin-bottom: 14px; }
+  .main h2 { font-size: 1.1rem !important; margin: 28px 0 8px; }
+  .kpi b { font-size: 1.45rem !important; line-height: 1.2 !important; }
+  .pl-target { font-size: 1.5rem !important; }
   .login { max-width: 460px; margin: 10vh auto; padding: 0 20px; }
   .login h1, .main h1 { font-family: var(--display); font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin: 0 0 18px; }
   .login h1 { font-size: 2.6rem; }

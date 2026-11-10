@@ -40,6 +40,12 @@
   [data-pane^="plan-"] input.pl-title { border:0; background:none; padding:2px 0; border-radius:0; font-size:.95rem; min-width:0; }
   [data-pane^="plan-"] .pl-card-meta { display:flex; gap:6px; align-items:center; margin-top:6px; flex-wrap:wrap; }
   [data-pane^="plan-"] .pl-card-meta select { width:auto; font-size:.8rem; padding:3px 8px; border-radius:8px; }
+  [data-pane^="plan-"] input.pl-due { width:auto; font-size:.8rem; padding:3px 8px; border-radius:8px; }
+  [data-pane^="plan-"] .pl-due-tag { font-size:.72rem; font-weight:600; padding:2px 9px; border-radius:999px; background:#e4edf5; color:var(--ink); }
+  [data-pane^="plan-"] .pl-due-tag.soon { background:#f6e3c4; }
+  [data-pane^="plan-"] .pl-due-tag.late { background:#f3d2cc; color:#8a2f27; }
+  [data-pane^="plan-"] .pl-add input[type=date] { width:auto; }
+  [data-pane^="plan-"] .pl-table input[type=checkbox].pl-inv { width:18px; height:18px; accent-color:var(--fund); }
   [data-pane^="plan-"] .pl-add { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; background:#e4edf5; padding:12px; border-radius:16px; }
   [data-pane^="plan-"] .pl-add input[type=text] { flex:1; min-width:160px; width:auto; }
   [data-pane^="plan-"] .pl-add select { width:auto; }
@@ -156,7 +162,9 @@
     });
     const board = el("div", { class: "pl-board" });
     URG.forEach(([u, label]) => {
-      const items = S.tasks.filter((t) => t.urgency === u && (taskFilter === "all" || t.category === taskFilter)).sort((a, b) => a.done - b.done);
+      // Tâches à faire d'abord, puis par échéance (les tâches sans date à la fin)
+      const byDue = (a, b) => (a.due_date || "9999") < (b.due_date || "9999") ? -1 : (a.due_date || "9999") > (b.due_date || "9999") ? 1 : 0;
+      const items = S.tasks.filter((t) => t.urgency === u && (taskFilter === "all" || t.category === taskFilter)).sort((a, b) => (a.done - b.done) || byDue(a, b));
       const col = el("div", { class: "pl-col" }, el("div", { class: "pl-col-head" },
         el("span", { class: "pl-dot " + u }), el("b", { text: label }), el("span", { class: "pl-count", text: String(items.filter((t) => !t.done).length) })));
       items.forEach((t) => col.append(taskCard(t, cats)));
@@ -166,23 +174,36 @@
     const title = input("text", "", null, { placeholder: "Nouvelle tâche…", maxlength: 200 });
     const cat = select(cats.map((c) => [c, c]), cats[0]);
     const urg = select(URG, "urgent");
+    const due = input("date", "", null, { title: "Échéance (facultatif)", "aria-label": "Échéance" });
     const go = async () => {
       const v = title.value.trim(); if (!v) return;
-      title.value = "";
-      await add("plan_tasks", { title: v, category: cat.value, urgency: urg.value, position: nextPos(S.tasks) }, S.tasks, renderTasks);
+      title.value = ""; const d = due.value || null; due.value = "";
+      await add("plan_tasks", { title: v, category: cat.value, urgency: urg.value, due_date: d, position: nextPos(S.tasks) }, S.tasks, renderTasks);
     };
     title.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
-    host.append(chips, board, el("div", { class: "pl-add" }, title, cat, urg, btn("Ajouter", go)));
+    host.append(chips, board, el("div", { class: "pl-add" }, title, cat, urg, due, btn("Ajouter", go)));
+  }
+  // Statut d'une échéance : "late" (dépassée), "soon" (dans les 7 jours) ou "" (rien à signaler)
+  function dueState(t) {
+    if (!t.due_date || t.done) return "";
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const due = new Date(t.due_date + "T00:00:00");
+    const days = Math.round((due - today) / 86400000);
+    return days < 0 ? "late" : days <= 7 ? "soon" : "";
   }
   function taskCard(t, cats) {
     const chk = el("input", { type: "checkbox", class: "pl-chk", "aria-label": "Fait" }); chk.checked = !!t.done;
     chk.addEventListener("change", () => save("plan_tasks", t, { done: chk.checked }, renderTasks));
     const title = input("text", t.title, (v) => { if (!v.trim()) return renderTasks(); save("plan_tasks", t, { title: v.trim() }); }, { class: "pl-title", maxlength: 200 });
+    const due = input("date", t.due_date || "", (v) => save("plan_tasks", t, { due_date: v || null }, renderTasks), { class: "pl-due", title: "Échéance (facultatif)", "aria-label": "Échéance" });
+    const st = dueState(t);
     return el("div", { class: "pl-card" + (t.done ? " done" : "") },
       el("div", { class: "pl-card-top" }, chk, title),
       el("div", { class: "pl-card-meta" },
         select(cats.map((c) => [c, c]), t.category, (v) => save("plan_tasks", t, { category: v }, renderTasks)),
         select(URG, t.urgency, (v) => save("plan_tasks", t, { urgency: v }, renderTasks)),
+        due,
+        st ? el("span", { class: "pl-due-tag " + st, text: st === "late" ? "En retard" : "Bientôt" }) : null,
         delBtn(() => { if (confirm("Supprimer cette tâche ?")) remove("plan_tasks", t.id, S.tasks, renderTasks); })));
   }
 
@@ -299,11 +320,18 @@
   function renderGuests() {
     const host = $("plan-guests"); if (!host) return; host.replaceChildren();
     if (banner(host)) return;
-    host.append(el("div", { class: "kpis" }, kpi(sum(S.guests, "civil_count"), "au civil"), kpi(sum(S.guests, "ceremony_count"), "à la cérémonie (total invités)"), kpi(sum(S.guests, "dinner_count"), "au souper")),
+    host.append(el("div", { class: "kpis" }, kpi(sum(S.guests, "civil_count"), "au civil"), kpi(sum(S.guests, "ceremony_count"), "à la cérémonie (total invités)"), kpi(sum(S.guests, "dinner_count"), "au souper"),
+        kpi(S.guests.filter((g) => g.invited).length + "/" + S.guests.length, "groupes invités")),
       el("div", { class: "toolbar", style: "margin-top:18px" }, el("p", { class: "hint", text: "Les lignes vertes sont celles où au moins une personne vient au souper." }),
-        btn("Exporter pour Excel", () => csv("invites-organisation.csv", ["Côté", "Nom", "Catégorie", "Cérémonie", "Souper", "Civil"],
-          S.guests.map((g) => [g.side === "kira" ? "Kira" : "Dan", g.name, (GUEST_CATS.find((c) => c[0] === g.category) || [0, g.category])[1], g.ceremony_count, g.dinner_count, g.civil_count])), "ghost small")));
+        btn("Exporter pour Excel", () => csv("invites-organisation.csv", ["Côté", "Nom", "Catégorie", "Cérémonie", "Souper", "Civil", "Invitation envoyée"],
+          S.guests.map((g) => [g.side === "kira" ? "Kira" : "Dan", g.name, (GUEST_CATS.find((c) => c[0] === g.category) || [0, g.category])[1], g.ceremony_count, g.dinner_count, g.civil_count, g.invited ? "oui" : "non"])), "ghost small")));
     SIDES.forEach(([side, label]) => host.append(guestSide(side, label)));
+  }
+  function invitedBox(g) {
+    const cb = el("input", { type: "checkbox", class: "pl-inv", "aria-label": "Invitation envoyée à " + g.name, title: "Invitation envoyée" });
+    cb.checked = !!g.invited;
+    cb.addEventListener("change", () => save("plan_guests", g, { invited: cb.checked }, renderGuests));
+    return cb;
   }
   function guestSide(side, label) {
     const rows = S.guests.filter((g) => g.side === side);
@@ -314,9 +342,10 @@
         el("td", null, input("text", g.name, (v) => { if (v.trim()) save("plan_guests", g, { name: v.trim() }); else renderGuests(); }, { class: "pl-name", maxlength: 200 })),
         el("td", null, select(GUEST_CATS, g.category, (v) => save("plan_guests", g, { category: v }))),
         el("td", null, cnt("ceremony_count")), el("td", null, cnt("dinner_count", g.dinner_count > g.ceremony_count)), el("td", null, cnt("civil_count", g.civil_count > g.ceremony_count)),
+        el("td", null, invitedBox(g)),
         el("td", null, delBtn(() => { if (confirm("Supprimer « " + g.name + " » ?")) remove("plan_guests", g.id, S.guests, renderGuests); }))));
     });
-    if (!rows.length) tb.append(el("tr", null, el("td", { colspan: "6", class: "hint", text: "Aucun invité de ce côté." })));
+    if (!rows.length) tb.append(el("tr", null, el("td", { colspan: "7", class: "hint", text: "Aucun invité de ce côté." })));
     const tot = (k) => sum(rows, k);
     const name = input("text", "", null, { placeholder: "Nom ou groupe…", maxlength: 200 }), cat = select(GUEST_CATS, "amis");
     const c1 = input("number", "1", null, { min: "0", title: "Cérémonie" }), c2 = input("number", "0", null, { min: "0", title: "Souper" }), c3 = input("number", "0", null, { min: "0", title: "Civil" });
@@ -330,7 +359,7 @@
     return el("div", null,
       el("h2", { text: label + " · " + tot("ceremony_count") + " cérémonie · " + tot("dinner_count") + " souper · " + tot("civil_count") + " civil" }),
       el("div", { class: "panel scroll" }, el("table", { class: "pl-table" },
-        el("thead", null, el("tr", null, ...["Nom", "Catégorie", "Cérémonie", "Souper", "Civil", ""].map((h) => el("th", { text: h })))), tb)),
+        el("thead", null, el("tr", null, ...["Nom", "Catégorie", "Cérémonie", "Souper", "Civil", "Invitation envoyée", ""].map((h) => el("th", { text: h })))), tb)),
       el("div", { class: "pl-add" }, name, cat, el("span", { class: "hint", style: "align-self:center", text: "cér. / souper / civil" }), c1, c2, c3, btn("Ajouter", go)));
   }
 
